@@ -5,49 +5,49 @@ export const AVATAR_CHARACTERS = [
   {
     id: 'alex_cool',
     name: 'Alex',
-    tag: 'Cool & Confident 😎',
+    tag: 'Male (Cool) 😎',
     url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex&mouth=smile&eyes=happy',
-  },
-  {
-    id: 'maya_joy',
-    name: 'Maya',
-    tag: 'Joyful & Bright 😊',
-    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Maya&mouth=smile&eyes=happy',
   },
   {
     id: 'leo_chill',
     name: 'Leo',
-    tag: 'Chill Vibe 🕶️',
+    tag: 'Male (Chill) 🕶️',
     url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Leo&mouth=smile',
-  },
-  {
-    id: 'sophia_chic',
-    name: 'Sophia',
-    tag: 'Chic & Artistic 🌸',
-    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sophia&mouth=smile',
   },
   {
     id: 'rohan_smart',
     name: 'Rohan',
-    tag: 'Smart & Sharp 💼',
+    tag: 'Male (Smart) 💼',
     url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Rohan&mouth=smile&eyes=default',
-  },
-  {
-    id: 'zara_hype',
-    name: 'Zara',
-    tag: 'Energetic & Hyped 🚀',
-    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Zara&mouth=smile&eyes=happy',
   },
   {
     id: 'dev_artist',
     name: 'Dev',
-    tag: 'Creative Thinker 🎨',
+    tag: 'Male (Creative) 🎨',
     url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Dev&mouth=smile',
+  },
+  {
+    id: 'ryan_active',
+    name: 'Ryan',
+    tag: 'Male (Sporty) 🚀',
+    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ryan&mouth=smile',
+  },
+  {
+    id: 'kabir_friendly',
+    name: 'Kabir',
+    tag: 'Male (Warm) 😊',
+    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Kabir&mouth=smile',
+  },
+  {
+    id: 'maya_joy',
+    name: 'Maya',
+    tag: 'Female (Joy) 🌸',
+    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Maya&mouth=smile&eyes=happy',
   },
   {
     id: 'ananya_witty',
     name: 'Ananya',
-    tag: 'Witty & Curious 💡',
+    tag: 'Female (Witty) 💡',
     url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ananya&mouth=smile&eyes=happy',
   }
 ];
