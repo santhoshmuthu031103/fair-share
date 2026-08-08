@@ -165,19 +165,18 @@ export const AuthModal = ({ onLoginSuccess }) => {
       <div>
         {/* Brand Header */}
         <div style={{ textAlign: 'center', marginTop: '8px', marginBottom: '20px' }}>
-          <div
-            style={{
-              width: '62px', height: '62px',
-              borderRadius: '20px',
-              background: 'linear-gradient(135deg, #9C3925 0%, #7B2418 100%)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '2rem',
-              margin: '0 auto 12px auto',
-              boxShadow: '0 10px 25px var(--accent-mint-glow)',
-            }}
-          >
-            💸
-          </div>
+          <img 
+            src="/favicon.svg" 
+            alt="FairShare Logo" 
+            style={{ 
+              width: '64px', 
+              height: '64px', 
+              borderRadius: '20px', 
+              margin: '0 auto 12px auto', 
+              display: 'block', 
+              boxShadow: '0 10px 25px var(--accent-mint-glow)' 
+            }} 
+          />
           <h1 style={{ fontSize: '1.5rem', fontWeight: '800', marginBottom: '4px' }}>
             FairShare
           </h1>

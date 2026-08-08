@@ -1,38 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
   <defs>
-    <!-- Background Radiant Gradient -->
     <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#FAF2F0" />
       <stop offset="100%" stop-color="#EBDAD8" />
     </linearGradient>
 
-    <!-- Warm Terracotta Gradient -->
     <linearGradient id="hand-terra" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#C2410C" />
       <stop offset="100%" stop-color="#9C3925" />
     </linearGradient>
 
-    <!-- Warm Amber Gold Gradient -->
     <linearGradient id="hand-gold" x1="0%" y1="100%" x2="100%" y2="0%">
       <stop offset="0%" stop-color="#F59E0B" />
       <stop offset="100%" stop-color="#D97706" />
     </linearGradient>
 
-    <!-- Soft Shadow -->
     <filter id="drop-shadow" x="-10%" y="-10%" width="130%" height="130%">
       <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#5C4747" flood-opacity="0.18" />
     </filter>
   </defs>
 
-  <!-- Base Icon Squircle -->
   <rect width="512" height="512" rx="128" fill="url(#bg-grad)" stroke="rgba(90,45,38,0.12)" stroke-width="8" />
 
-  <!-- Handshake Circle Token Group -->
   <g transform="translate(256, 256)" filter="url(#drop-shadow)">
-    <!-- Outer Orbit Ring Guide -->
     <circle cx="0" cy="0" r="148" fill="none" stroke="rgba(156,57,37,0.08)" stroke-width="16" />
 
-    <!-- Left Hand / Upper Arc (Terracotta) -->
     <path 
       d="M -130 -20 
          C -130 -100, -60 -150, 20 -150 
@@ -46,7 +38,6 @@
       fill="url(#hand-terra)" 
     />
 
-    <!-- Right Hand / Lower Arc (Amber Gold Interlocking) -->
     <path 
       d="M 130 20 
          C 130 100, 60 150, -20 150 
@@ -60,11 +51,9 @@
       fill="url(#hand-gold)" 
     />
 
-    <!-- Center Balance Rupee Node / Shared Smiling Heart-Coin -->
     <circle cx="0" cy="0" r="38" fill="#FAF2F0" stroke="rgba(90,45,38,0.15)" stroke-width="4" />
     <circle cx="0" cy="0" r="26" fill="url(#hand-terra)" />
     
-    <!-- Smile Arc on Center Node -->
     <path d="M -12 -2 Q 0 12 12 -2" fill="none" stroke="#FAF2F0" stroke-width="4" stroke-linecap="round" />
   </g>
 </svg>
