@@ -1,10 +1,62 @@
 import React, { useState } from 'react';
-import { X, User, Phone, Mail, LogOut, Trash2, Check, Sparkles, AlertTriangle } from 'lucide-react';
+import { X, User, Phone, Mail, LogOut, Trash2, Check, Sparkles, AlertTriangle, Upload, Shuffle, Smile } from 'lucide-react';
+
+export const AVATAR_CHARACTERS = [
+  {
+    id: 'alex_cool',
+    name: 'Alex',
+    tag: 'Cool & Confident 😎',
+    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex&mouth=smile&eyes=happy&style=circle',
+  },
+  {
+    id: 'maya_joy',
+    name: 'Maya',
+    tag: 'Joyful & Bright 😊',
+    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Maya&mouth=laughing&eyes=happy&style=circle',
+  },
+  {
+    id: 'leo_chill',
+    name: 'Leo',
+    tag: 'Chill Vibe 🕶️',
+    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Leo&accessories=sunglasses&mouth=smile&style=circle',
+  },
+  {
+    id: 'sophia_chic',
+    name: 'Sophia',
+    tag: 'Chic & Artistic 🌸',
+    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sophia&hairColor=auburn&mouth=smile&style=circle',
+  },
+  {
+    id: 'rohan_smart',
+    name: 'Rohan',
+    tag: 'Smart & Sharp 💼',
+    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Rohan&mouth=smile&eyes=default&style=circle',
+  },
+  {
+    id: 'zara_hype',
+    name: 'Zara',
+    tag: 'Energetic & Hyped 🚀',
+    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Zara&mouth=openSmile&eyes=sparkle&style=circle',
+  },
+  {
+    id: 'dev_artist',
+    name: 'Dev',
+    tag: 'Creative Thinker 🎨',
+    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Dev&facialHair=magnum&mouth=smile&style=circle',
+  },
+  {
+    id: 'ananya_witty',
+    name: 'Ananya',
+    tag: 'Witty & Curious 💡',
+    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ananya&mouth=twinkle&eyes=happy&style=circle',
+  }
+];
 
 export const ProfileModal = ({ currentUser, onClose, onUpdateProfile, onLogout, onResetData }) => {
   const [name, setName] = useState(currentUser?.name || '');
   const [email, setEmail] = useState(currentUser?.email || '');
   const [phone, setPhone] = useState(currentUser?.phone || '');
+  const [avatar, setAvatar] = useState(currentUser?.avatar || AVATAR_CHARACTERS[0].url);
   const [isSaved, setIsSaved] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
@@ -15,9 +67,33 @@ export const ProfileModal = ({ currentUser, onClose, onUpdateProfile, onLogout, 
       name: name.trim(),
       email: email.trim(),
       phone: phone.trim(),
+      avatar,
     });
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 2000);
+  };
+
+  const handleRollRandom = () => {
+    const randomSeed = Math.random().toString(36).substring(2, 8);
+    const emotions = ['smile', 'laughing', 'openSmile', 'twinkle'];
+    const eyes = ['happy', 'sparkle', 'default'];
+    const randomEmotion = emotions[Math.floor(Math.random() * emotions.length)];
+    const randomEye = eyes[Math.floor(Math.random() * eyes.length)];
+    const newAvatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${randomSeed}&mouth=${randomEmotion}&eyes=${randomEye}&style=circle`;
+    setAvatar(newAvatarUrl);
+  };
+
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setAvatar(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   return (
@@ -28,14 +104,14 @@ export const ProfileModal = ({ currentUser, onClose, onUpdateProfile, onLogout, 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <User size={22} color="var(--accent-mint)" />
-            <h2 style={{ fontSize: '1.25rem', fontWeight: '800' }}>User Profile</h2>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: '800' }}>User Profile & Avatar</h2>
           </div>
           <button onClick={onClose} className="icon-btn">
             <X size={18} />
           </button>
         </div>
 
-        {/* Profile Card Summary Header */}
+        {/* Current Avatar & Profile Preview */}
         <div 
           style={{
             background: 'var(--bg-card)',
@@ -48,19 +124,111 @@ export const ProfileModal = ({ currentUser, onClose, onUpdateProfile, onLogout, 
             marginBottom: '16px',
           }}
         >
-          <img src={currentUser?.avatar} alt={currentUser?.name} style={{ width: '56px', height: '56px', borderRadius: '50%', border: '2px solid var(--accent-mint)' }} />
+          <div style={{ position: 'relative' }}>
+            <img 
+              src={avatar} 
+              alt={name} 
+              style={{ width: '64px', height: '64px', borderRadius: '50%', border: '3px solid var(--accent-mint)', objectFit: 'cover' }} 
+            />
+            <button
+              type="button"
+              onClick={handleRollRandom}
+              title="Roll Random Character"
+              style={{
+                position: 'absolute',
+                bottom: '-4px',
+                right: '-4px',
+                width: '24px',
+                height: '24px',
+                borderRadius: '50%',
+                background: 'var(--accent-mint)',
+                color: '#fff',
+                border: '2px solid #fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+              }}
+            >
+              <Shuffle size={12} />
+            </button>
+          </div>
           <div>
-            <div style={{ fontWeight: '800', fontSize: '1.1rem' }}>{currentUser?.name}</div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{currentUser?.email || currentUser?.phone}</div>
+            <div style={{ fontWeight: '800', fontSize: '1.15rem' }}>{name || 'Your Name'}</div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{email || phone || 'Registered Account'}</div>
             <div style={{ fontSize: '0.75rem', color: 'var(--accent-mint)', fontWeight: '700', marginTop: '2px' }}>
-              ● Registered Active Account
+              ● Tap any character below to change
             </div>
+          </div>
+        </div>
+
+        {/* Character / Emotion Avatar Selection Grid */}
+        <div className="form-group">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <label className="form-label" style={{ marginBottom: 0, display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <Smile size={14} color="var(--accent-mint)" /> Choose Your Character & Emotion
+            </label>
+            <label
+              style={{
+                fontSize: '0.74rem',
+                color: 'var(--accent-mint)',
+                fontWeight: '700',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              <Upload size={12} /> Upload Photo
+              <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: 'none' }} />
+            </label>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
+            {AVATAR_CHARACTERS.map((char) => {
+              const isSelected = avatar === char.url;
+              return (
+                <div
+                  key={char.id}
+                  onClick={() => setAvatar(char.url)}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    padding: '8px 4px',
+                    borderRadius: '16px',
+                    background: isSelected ? 'var(--accent-mint-glow)' : 'var(--bg-input)',
+                    border: isSelected ? '2px solid var(--accent-mint)' : '1px solid var(--border-color)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    position: 'relative',
+                  }}
+                >
+                  <img 
+                    src={char.url} 
+                    alt={char.name} 
+                    style={{ width: '44px', height: '44px', borderRadius: '50%', marginBottom: '4px' }} 
+                  />
+                  <span style={{ fontSize: '0.74rem', fontWeight: '800', textAlign: 'center', color: isSelected ? 'var(--accent-mint)' : 'var(--text-primary)' }}>
+                    {char.name}
+                  </span>
+                  <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', textAlign: 'center', lineHeight: '1.1' }}>
+                    {char.tag.split(' ')[0]}
+                  </span>
+                  {isSelected && (
+                    <div style={{ position: 'absolute', top: '4px', right: '4px', background: 'var(--accent-mint)', borderRadius: '50%', padding: '2px', color: '#fff' }}>
+                      <Check size={10} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 
         {isSaved && (
           <div style={{ background: 'var(--accent-mint-glow)', color: 'var(--accent-mint)', padding: '10px', borderRadius: '12px', textAlign: 'center', fontWeight: '700', fontSize: '0.85rem', marginBottom: '14px' }}>
-            Profile updated successfully!
+            Profile & Character Avatar saved successfully!
           </div>
         )}
 
@@ -98,7 +266,7 @@ export const ProfileModal = ({ currentUser, onClose, onUpdateProfile, onLogout, 
 
           <div style={{ display: 'flex', gap: '10px', marginTop: '14px' }}>
             <button type="submit" className="btn-primary" style={{ flex: 2 }}>
-              Save Profile Changes
+              Save Character & Profile
             </button>
             {onLogout && (
               <button 
