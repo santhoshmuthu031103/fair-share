@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- FairShare Light Theme: #EBDAD8 Background, #FAF2F0 Cards, Black text -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <item name="colorPrimary">#9C3925</item>
+        <item name="colorPrimaryDark">#EBDAD8</item>
+        <item name="colorAccent">#9C3925</item>
+    </style>
+
+    <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:windowBackground">#EBDAD8</item>
+        <item name="android:statusBarColor">#EBDAD8</item>
+        <item name="android:navigationBarColor">#EBDAD8</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+
+    <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <item name="android:background">#EBDAD8</item>
+        <item name="android:statusBarColor">#EBDAD8</item>
+        <item name="android:navigationBarColor">#EBDAD8</item>
+    </style>
+</resources>
