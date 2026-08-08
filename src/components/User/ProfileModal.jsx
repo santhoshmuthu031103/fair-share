@@ -6,49 +6,49 @@ export const AVATAR_CHARACTERS = [
     id: 'alex_cool',
     name: 'Alex',
     tag: 'Cool & Confident 😎',
-    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex&mouth=smile&eyes=happy&style=circle',
+    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex&mouth=smile&eyes=happy',
   },
   {
     id: 'maya_joy',
     name: 'Maya',
     tag: 'Joyful & Bright 😊',
-    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Maya&mouth=laughing&eyes=happy&style=circle',
+    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Maya&mouth=smile&eyes=happy',
   },
   {
     id: 'leo_chill',
     name: 'Leo',
     tag: 'Chill Vibe 🕶️',
-    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Leo&accessories=sunglasses&mouth=smile&style=circle',
+    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Leo&mouth=smile',
   },
   {
     id: 'sophia_chic',
     name: 'Sophia',
     tag: 'Chic & Artistic 🌸',
-    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sophia&hairColor=auburn&mouth=smile&style=circle',
+    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sophia&mouth=smile',
   },
   {
     id: 'rohan_smart',
     name: 'Rohan',
     tag: 'Smart & Sharp 💼',
-    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Rohan&mouth=smile&eyes=default&style=circle',
+    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Rohan&mouth=smile&eyes=default',
   },
   {
     id: 'zara_hype',
     name: 'Zara',
     tag: 'Energetic & Hyped 🚀',
-    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Zara&mouth=openSmile&eyes=sparkle&style=circle',
+    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Zara&mouth=smile&eyes=happy',
   },
   {
     id: 'dev_artist',
     name: 'Dev',
     tag: 'Creative Thinker 🎨',
-    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Dev&facialHair=magnum&mouth=smile&style=circle',
+    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Dev&mouth=smile',
   },
   {
     id: 'ananya_witty',
     name: 'Ananya',
     tag: 'Witty & Curious 💡',
-    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ananya&mouth=twinkle&eyes=happy&style=circle',
+    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ananya&mouth=smile&eyes=happy',
   }
 ];
 
