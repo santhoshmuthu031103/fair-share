@@ -13,6 +13,7 @@ import { AddFriendModal } from './components/Friends/AddFriendModal';
 import { AddExpenseModal } from './components/Expenses/AddExpenseModal';
 import { SettleUpModal } from './components/Debts/SettleUpModal';
 import { ActivityFeed } from './components/Activity/ActivityFeed';
+import { AnalyticsView } from './components/Analytics/AnalyticsView';
 import { ProfileModal } from './components/User/ProfileModal';
 import { AuthModal } from './components/User/AuthModal';
 import { 
@@ -662,16 +663,14 @@ export function App() {
               />
             )}
 
-            {activeTab === 'activity' && (
-              <ActivityFeed
+            {activeTab === 'analytics' && (
+              <AnalyticsView
                 expenses={expenses}
                 settlements={settlements}
                 groups={groups}
                 friends={friends}
                 currency={activeCurrency}
                 currentUser={currentUser}
-                onDeleteExpense={handleDeleteExpense}
-                onDeleteSettlement={handleDeleteSettlement}
               />
             )}
           </>

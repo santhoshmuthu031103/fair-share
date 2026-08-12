@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Users, UserCheck, Activity, Plus } from 'lucide-react';
+import { LayoutDashboard, Users, UserCheck, BarChart3, Plus } from 'lucide-react';
 
 export const BottomNav = ({ activeTab, onTabChange, onOpenAddExpense }) => {
   const navItems = [
@@ -7,7 +7,7 @@ export const BottomNav = ({ activeTab, onTabChange, onOpenAddExpense }) => {
     { id: 'groups', label: 'Groups', icon: Users },
     { id: 'fab', label: '', icon: null }, // Center Action FAB
     { id: 'friends', label: 'Friends', icon: UserCheck },
-    { id: 'activity', label: 'Activity', icon: Activity },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   ];
 
   return (
