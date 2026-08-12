@@ -15,6 +15,10 @@ export const normalizeEmail = (email) => {
   return String(email).trim().toLowerCase();
 };
 
+const bHasId = (userB, idA) => {
+  return userB.id === idA;
+};
+
 export const isSamePerson = (userA, userB) => {
   if (!userA || !userB) return false;
   if (userA.id && bHasId(userB, userA.id)) return true;
@@ -36,10 +40,6 @@ export const isSamePerson = (userA, userB) => {
   }
 
   return false;
-};
-
-const bHasId = (userB, idA) => {
-  return userB.id === idA;
 };
 
 /**

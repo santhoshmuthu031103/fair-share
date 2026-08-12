@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Users, Check } from 'lucide-react';
 import { linkGroupToUserContact, generateSyncCode } from '../../utils/firebaseSync';
+import { avatarOnError, getAvatarUrl } from '../../utils/avatarHelper';
 
 const COVER_PRESETS = [
   'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=600&q=80',
@@ -122,7 +123,7 @@ export const CreateGroupModal = ({ friends, currentUser, currency, onClose, onCr
                       fontWeight: '600',
                     }}
                   >
-                    <img src={f.avatar} alt={f.name} style={{ width: '20px', height: '20px', borderRadius: '50%' }} />
+                    <img src={getAvatarUrl(f)} alt={f.name} style={{ width: '20px', height: '20px', borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }} onError={avatarOnError(f.name)} />
                     <span>{f.id === currentUserId ? 'You' : f.name}</span>
                     {isSelected && <Check size={14} />}
                   </div>

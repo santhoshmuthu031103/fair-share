@@ -101,6 +101,23 @@ export function App() {
           if (!rawCloudData) return;
           isSyncingRef.current = true;
 
+          if (rawCloudData.deleted || (rawCloudData.group && rawCloudData.group.deleted)) {
+            setState(prev => ({
+              ...prev,
+              groups: prev.groups.filter(g => (g.syncCode || generateSyncCode(g.id)) !== syncCode),
+              expenses: prev.expenses.filter(e => {
+                const group = prev.groups.find(g => (g.syncCode || generateSyncCode(g.id)) === syncCode);
+                return group ? e.groupId !== group.id : true;
+              }),
+              settlements: prev.settlements.filter(s => {
+                const group = prev.groups.find(g => (g.syncCode || generateSyncCode(g.id)) === syncCode);
+                return group ? s.groupId !== group.id : true;
+              })
+            }));
+            setTimeout(() => { isSyncingRef.current = false; }, 100);
+            return;
+          }
+
           const cloudData = reconcileCloudData(rawCloudData, currentUser, friends);
 
           setState(prev => {
@@ -117,9 +134,15 @@ export function App() {
             const otherSets = prev.settlements.filter(s => s.groupId !== incomingGroup.id);
             const newSets = [...otherSets, ...incomingSets];
 
-            // Merge friends without duplicates
+            // Merge friends without duplicates (deduplicate by id, phone, email)
             const mergedFriendIds = new Set(prev.friends.map(f => f.id));
-            const newFriends = [...prev.friends, ...incomingMembers.filter(m => !mergedFriendIds.has(m.id))];
+            const newFriends = [...prev.friends];
+            incomingMembers.forEach(m => {
+              if (m && m.id && !mergedFriendIds.has(m.id)) {
+                mergedFriendIds.add(m.id);
+                newFriends.push(m);
+              }
+            });
 
             // Update groups
             const newGroups = prev.groups.some(g => g.id === incomingGroup.id)
@@ -170,18 +193,23 @@ export function App() {
   }, [currentUser?.phone, currentUser?.email, state.groups]);
 
   const handleRegisterLogin = (userProfile) => {
-    let myId = localStorage.getItem('splitwise_my_user_id');
-    if (!myId) {
-      myId = `user_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-      localStorage.setItem('splitwise_my_user_id', myId);
-    }
+    const existingLocalId = localStorage.getItem('splitwise_my_user_id');
+    const myId = userProfile.id || existingLocalId || `user_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    localStorage.setItem('splitwise_my_user_id', myId);
     const profileWithId = { ...userProfile, id: myId };
     localStorage.setItem('splitwise_is_logged_in', 'true');
     localStorage.setItem('splitwise_user_profile', JSON.stringify(profileWithId));
     setIsLoggedIn(true);
 
     setState(prev => {
-      const withoutMe = prev.friends.filter(f => f.id !== myId && f.id !== CURRENT_USER_ID);
+      // Remove any stale entries that share the same id, phone, or email as the new profile
+      const withoutMe = prev.friends.filter(f => {
+        if (f.id === myId || f.id === CURRENT_USER_ID) return false;
+        if (String(f.name || '').trim().toLowerCase() === 'you') return false; // strip the ghost "You" created during reset/init
+        if (profileWithId.phone && f.phone && f.phone === profileWithId.phone) return false;
+        if (profileWithId.email && f.email && f.email === profileWithId.email) return false;
+        return true;
+      });
       return {
         ...prev,
         friends: [profileWithId, ...withoutMe],
@@ -308,12 +336,22 @@ export function App() {
     const grp = state.groups.find(g => g.id === groupId);
     if (!grp) return;
 
-    const updatedMembers = [...new Set([...(grp.members || []), ...memberIds])];
+    const oldMembers = grp.members || [];
+    const updatedMembers = [...new Set([...oldMembers, ...memberIds])];
     const updatedGrp = { ...grp, members: updatedMembers };
+
+    // Freeze recipientIds for old expenses so new members aren't retroactively charged
+    const updatedExpenses = state.expenses.map(e => {
+      if (e.groupId === groupId && (!e.recipientIds || e.recipientIds.length === 0)) {
+        return { ...e, recipientIds: oldMembers };
+      }
+      return e;
+    });
 
     const nextState = {
       ...state,
       groups: state.groups.map(g => g.id === groupId ? updatedGrp : g),
+      expenses: updatedExpenses,
     };
 
     setState(nextState);
@@ -363,10 +401,19 @@ export function App() {
   };
 
   const handleAddFriend = (newFriendData) => {
-    setState(prev => ({
-      ...prev,
-      friends: [...prev.friends, newFriendData],
-    }));
+    setState(prev => {
+      const isDuplicate = prev.friends.some(f => 
+        f.id === newFriendData.id || 
+        (f.phone && newFriendData.phone && f.phone === newFriendData.phone) || 
+        (f.email && newFriendData.email && f.email === newFriendData.email)
+      );
+      if (isDuplicate) return prev;
+
+      return {
+        ...prev,
+        friends: [...prev.friends, newFriendData],
+      };
+    });
     setModalType(null);
   };
 
@@ -394,7 +441,7 @@ export function App() {
     const nextState = {
       ...state,
       groups: state.groups.map(g => 
-        g.id === groupId ? { ...g, simplifyDebts: g.simplifyDebts === false } : g
+        g.id === groupId ? { ...g, simplifyDebts: !g.simplifyDebts } : g
       ),
     };
     setState(nextState);
@@ -403,29 +450,25 @@ export function App() {
 
   const handleDeleteExpense = (expenseId) => {
     const expToDelete = state.expenses.find(e => e.id === expenseId);
-    if (window.confirm('Delete this expense?')) {
-      const nextState = {
-        ...state,
-        expenses: state.expenses.filter(e => e.id !== expenseId),
-      };
-      setState(nextState);
-      if (expToDelete?.groupId) {
-        publishGroupInstantly(expToDelete.groupId, nextState);
-      }
+    const nextState = {
+      ...state,
+      expenses: state.expenses.filter(e => e.id !== expenseId),
+    };
+    setState(nextState);
+    if (expToDelete?.groupId) {
+      publishGroupInstantly(expToDelete.groupId, nextState);
     }
   };
 
   const handleDeleteSettlement = (settlementId) => {
     const setToDelete = state.settlements.find(s => s.id === settlementId);
-    if (window.confirm('Delete this settlement record?')) {
-      const nextState = {
-        ...state,
-        settlements: state.settlements.filter(s => s.id !== settlementId),
-      };
-      setState(nextState);
-      if (setToDelete?.groupId) {
-        publishGroupInstantly(setToDelete.groupId, nextState);
-      }
+    const nextState = {
+      ...state,
+      settlements: state.settlements.filter(s => s.id !== settlementId),
+    };
+    setState(nextState);
+    if (setToDelete?.groupId) {
+      publishGroupInstantly(setToDelete.groupId, nextState);
     }
   };
 
@@ -434,11 +477,15 @@ export function App() {
     const syncCode = grp?.syncCode || generateSyncCode(groupId);
     
     // Broadcast deletion to Firebase so all friends' devices remove this group in real-time
-    deleteCloudGroup(syncCode);
+    try {
+      deleteCloudGroup(syncCode);
+    } catch (e) {
+      console.error('Failed to delete cloud group', e);
+    }
 
     setState(prev => ({
       ...prev,
-      groups: prev.groups.filter(g => g.id !== groupId),
+      groups: prev.groups.filter(g => g.id !== groupId && g.name), // also purge nameless ghost groups
       expenses: prev.expenses.filter(e => e.groupId !== groupId),
       settlements: prev.settlements.filter(s => s.groupId !== groupId),
     }));
@@ -447,12 +494,10 @@ export function App() {
 
   const handleDeleteFriend = (friendId) => {
     if (friendId === currentUser.id) return; // Cannot delete device owner
-    if (window.confirm('Remove this friend from contacts?')) {
-      setState(prev => ({
-        ...prev,
-        friends: prev.friends.filter(f => f.id !== friendId),
-      }));
-    }
+    setState(prev => ({
+      ...prev,
+      friends: prev.friends.filter(f => f.id !== friendId),
+    }));
   };
 
   const openSettleUpModal = (initialData = {}) => {
@@ -470,6 +515,12 @@ export function App() {
   const handleJoinGroup = (syncCode, rawCloudData) => {
     isSyncingRef.current = true;
 
+    if (rawCloudData.deleted || (rawCloudData.group && rawCloudData.group.deleted)) {
+      alert("This group no longer exists.");
+      isSyncingRef.current = false;
+      return;
+    }
+
     // Reconcile and unify user identity
     const cloudData = reconcileCloudData(rawCloudData, currentUser, state.friends);
 
@@ -481,8 +532,15 @@ export function App() {
     let myProfile = currentUser;
 
     setState(prev => {
+      const oldGroupMembers = incomingGroup.members || [];
+
       const otherExps = prev.expenses.filter(e => e.groupId !== incomingGroup.id);
-      const newExps = [...otherExps, ...incomingExps];
+      const newExps = [...otherExps, ...incomingExps.map(e => {
+        if (!e.recipientIds || e.recipientIds.length === 0) {
+          return { ...e, recipientIds: oldGroupMembers };
+        }
+        return e;
+      })];
 
       const otherSets = prev.settlements.filter(s => s.groupId !== incomingGroup.id);
       const newSets = [...otherSets, ...incomingSets];
@@ -491,12 +549,19 @@ export function App() {
         ? [...incomingMembers.filter(m => m.id !== myProfile.id), myProfile]
         : incomingMembers;
       const mergedFriendIds = new Set(prev.friends.map(f => f.id));
-      const newFriends = [...prev.friends, ...allIncomingMembers.filter(m => !mergedFriendIds.has(m.id))];
+      const rawNewFriends = [...prev.friends, ...allIncomingMembers.filter(m => !mergedFriendIds.has(m.id))];
+      // Deduplicate by ID in case any ghost entries slipped through
+      const seenIds = new Set();
+      const newFriends = rawNewFriends.filter(f => {
+        if (!f || !f.id || seenIds.has(f.id)) return false;
+        seenIds.add(f.id);
+        return true;
+      });
 
       const myId = myProfile?.id;
-      const updatedMemberIds = myId && !incomingGroup.members?.includes(myId)
-        ? [...(incomingGroup.members || []), myId]
-        : (incomingGroup.members || []);
+      const updatedMemberIds = myId && !oldGroupMembers.includes(myId)
+        ? [...oldGroupMembers, myId]
+        : oldGroupMembers;
       const grpWithCode = { ...incomingGroup, syncCode, members: updatedMemberIds };
 
       const newGroups = prev.groups.some(g => g.id === grpWithCode.id)
@@ -536,9 +601,9 @@ export function App() {
       />
 
       <main className="mobile-screen-content">
-        {selectedGroup ? (
+        {selectedGroup && groups.find(g => g.id === selectedGroup.id) ? (
           <GroupDetail
-            group={groups.find(g => g.id === selectedGroup.id) || selectedGroup}
+            group={groups.find(g => g.id === selectedGroup.id)}
             expenses={expenses}
             settlements={settlements}
             friends={friends}
@@ -586,6 +651,7 @@ export function App() {
             {activeTab === 'friends' && (
               <FriendsList
                 friends={friends}
+                groups={groups}
                 expenses={expenses}
                 settlements={settlements}
                 currency={activeCurrency}

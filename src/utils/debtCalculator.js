@@ -1,36 +1,58 @@
 /**
- * Calculates individual member breakdown for an expense based on split strategy
- * @param {Object} expense 
- * @param {Array} groupMembers 
- * @returns {Object} { userId: amountOwed }
+ * debtCalculator.js
+ * The single canonical ledger engine for FairShare.
+ * All balances, debts, and settlements must be derived from this engine.
+ */
+
+/**
+ * Calculates individual member breakdown for an expense based on split strategy,
+ * handling penny rounding by allocating remainder to the last participant.
  */
 export const calculateExpenseShares = (expense, groupMembers = []) => {
-  const { amount, paidBy, splitType = 'equal', splits = {}, recipientIds } = expense;
-  const totalAmount = parseFloat(amount) || 0;
-  
-  // Filter active participants for this expense
-  const activeMembers = recipientIds && recipientIds.length > 0 
-    ? groupMembers.filter(m => recipientIds.includes(m.id))
-    : groupMembers;
+  const { amount, splitType = 'equal', splits = {}, recipientIds } = expense;
+  const totalAmount = Math.round(parseFloat(amount) * 100) / 100 || 0;
+
+  // Sort members deterministically by ID so penny rounding always lands
+  // on the same person regardless of caller's array ordering.
+  const sortedMembers = [...groupMembers].sort((a, b) =>
+    String(a.id).localeCompare(String(b.id))
+  );
+
+  const activeMembers = recipientIds && recipientIds.length > 0
+    ? sortedMembers.filter(m => recipientIds.includes(m.id))
+    : sortedMembers;
 
   const result = {};
   if (activeMembers.length === 0) return result;
+  sortedMembers.forEach(m => { result[m.id] = 0; });
 
-  groupMembers.forEach(m => { result[m.id] = 0; });
+  let distributed = 0;
 
   if (splitType === 'equal') {
-    const share = totalAmount / activeMembers.length;
-    activeMembers.forEach(m => {
-      result[m.id] = Math.round(share * 100) / 100;
+    const exactShare = totalAmount / activeMembers.length;
+    activeMembers.forEach((m, idx) => {
+      if (idx === activeMembers.length - 1) {
+        result[m.id] = Math.round((totalAmount - distributed) * 100) / 100;
+      } else {
+        const share = Math.round(exactShare * 100) / 100;
+        result[m.id] = share;
+        distributed += share;
+      }
     });
   } else if (splitType === 'exact') {
     activeMembers.forEach(m => {
-      result[m.id] = parseFloat(splits[m.id]) || 0;
+      result[m.id] = Math.round((parseFloat(splits[m.id]) || 0) * 100) / 100;
     });
   } else if (splitType === 'percentage') {
-    activeMembers.forEach(m => {
-      const pct = parseFloat(splits[m.id]) || 0;
-      result[m.id] = Math.round((totalAmount * pct / 100) * 100) / 100;
+    activeMembers.forEach((m, idx) => {
+      if (idx === activeMembers.length - 1) {
+        result[m.id] = Math.round((totalAmount - distributed) * 100) / 100;
+      } else {
+        const pct = parseFloat(splits[m.id]) || 0;
+        const share = Math.round((totalAmount * pct / 100) * 100) / 100;
+        result[m.id] = share;
+        distributed += share;
+      }
     });
   } else if (splitType === 'shares') {
     let totalShares = 0;
@@ -38,9 +60,15 @@ export const calculateExpenseShares = (expense, groupMembers = []) => {
       totalShares += (parseFloat(splits[m.id]) || 0);
     });
     if (totalShares > 0) {
-      activeMembers.forEach(m => {
-        const userShares = parseFloat(splits[m.id]) || 0;
-        result[m.id] = Math.round((totalAmount * userShares / totalShares) * 100) / 100;
+      activeMembers.forEach((m, idx) => {
+        if (idx === activeMembers.length - 1) {
+          result[m.id] = Math.round((totalAmount - distributed) * 100) / 100;
+        } else {
+          const userShares = parseFloat(splits[m.id]) || 0;
+          const share = Math.round((totalAmount * userShares / totalShares) * 100) / 100;
+          result[m.id] = share;
+          distributed += share;
+        }
       });
     }
   }
@@ -49,82 +77,30 @@ export const calculateExpenseShares = (expense, groupMembers = []) => {
 };
 
 /**
- * Calculates net balance for every group member (+ owes to them, - owes to others)
- * @param {Array} expenses 
- * @param {Array} settlements 
- * @param {Array} members 
- * @returns {Object} { userId: netBalance }
- */
-export const calculateNetBalances = (expenses = [], settlements = [], members = []) => {
-  const balances = {};
-  members.forEach(m => { balances[m.id] = 0; });
-
-  // 1. Process Expenses
-  expenses.forEach(exp => {
-    const totalAmount = parseFloat(exp.amount) || 0;
-    const paidBy = exp.paidBy;
-    const shares = calculateExpenseShares(exp, members);
-
-    // Payer gains the full paid amount
-    if (balances[paidBy] !== undefined) {
-      balances[paidBy] += totalAmount;
-    }
-
-    // Each participant owes their share
-    Object.keys(shares).forEach(userId => {
-      if (balances[userId] !== undefined) {
-        balances[userId] -= shares[userId];
-      }
-    });
-  });
-
-  // 2. Process Settlements
-  settlements.forEach(set => {
-    const amt = parseFloat(set.amount) || 0;
-    // Payer sent money -> net balance increases
-    if (balances[set.payerId] !== undefined) {
-      balances[set.payerId] += amt;
-    }
-    // Payee received money -> net balance decreases
-    if (balances[set.payeeId] !== undefined) {
-      balances[set.payeeId] -= amt;
-    }
-  });
-
-  // Clean up floating point precision issues
-  Object.keys(balances).forEach(id => {
-    balances[id] = Math.round(balances[id] * 100) / 100;
-    if (Math.abs(balances[id]) < 0.001) balances[id] = 0;
-  });
-
-  return balances;
-};
-
-/**
  * Min-Cash-Flow Greedy Debt Simplification Algorithm
- * @param {Object} netBalances { userId: netBalance }
- * @returns {Array} List of simplified transactions [{ from, to, amount }]
+ * Converts net balances into the minimum number of transactions.
  */
-export const simplifyDebts = (netBalances = {}) => {
-  const debtors = [];  // people who owe money (netBalance < 0)
-  const creditors = []; // people who are owed money (netBalance > 0)
+const simplifyDebts = (netBalances = {}, simplify = false) => {
+  // When simplify=false, the caller should use getExactPairwiseDebts directly.
+  // This path is only used for the simplified min-cash-flow algorithm.
+  if (!simplify) return [];
+
+  const debtors = [];
+  const creditors = [];
 
   Object.entries(netBalances).forEach(([userId, balance]) => {
-    if (balance < -0.01) {
+    if (balance < -0.005) {
       debtors.push({ userId, amount: -balance });
-    } else if (balance > 0.01) {
+    } else if (balance > 0.005) {
       creditors.push({ userId, amount: balance });
     }
   });
 
-  // Sort descending by amount
   debtors.sort((a, b) => b.amount - a.amount);
   creditors.sort((a, b) => b.amount - a.amount);
 
   const transactions = [];
-
-  let i = 0; // debtor index
-  let j = 0; // creditor index
+  let i = 0, j = 0;
 
   while (i < debtors.length && j < creditors.length) {
     const debtor = debtors[i];
@@ -144,63 +120,230 @@ export const simplifyDebts = (netBalances = {}) => {
     debtor.amount -= settledAmount;
     creditor.amount -= settledAmount;
 
-    if (Math.round(debtor.amount * 100) / 100 <= 0) {
-      i++;
-    }
-    if (Math.round(creditor.amount * 100) / 100 <= 0) {
-      j++;
-    }
+    if (Math.round(debtor.amount * 100) / 100 <= 0) i++;
+    if (Math.round(creditor.amount * 100) / 100 <= 0) j++;
   }
 
   return transactions;
 };
 
 /**
- * Get detailed pairwise balances between current user and all friends
+ * Calculates raw, unsimplified 1-to-1 pairwise debts for a specific set of expenses/settlements.
  */
-export const getPairwiseBalances = (expenses = [], settlements = [], currentUserId, friends = []) => {
+const getExactPairwiseDebts = (expenses = [], settlements = [], members = []) => {
   const matrix = {};
-  friends.forEach(f => {
-    if (f.id !== currentUserId) {
-      matrix[f.id] = 0;
-    }
+  members.forEach(m => {
+    matrix[m.id] = {};
+    members.forEach(m2 => {
+      matrix[m.id][m2.id] = 0;
+    });
   });
 
-  // For each expense, calculate who owes whom
   expenses.forEach(exp => {
-    const shares = calculateExpenseShares(exp, friends);
+    const shares = calculateExpenseShares(exp, members);
     const payer = exp.paidBy;
-    const totalAmount = parseFloat(exp.amount) || 0;
 
-    if (payer === currentUserId) {
-      // Current user paid -> other members owe current user their shares
-      Object.entries(shares).forEach(([userId, shareAmt]) => {
-        if (userId !== currentUserId && matrix[userId] !== undefined) {
-          matrix[userId] += shareAmt;
-        }
-      });
-    } else if (matrix[payer] !== undefined) {
-      // Someone else paid -> current user owes payer current user's share
-      const currentUserShare = shares[currentUserId] || 0;
-      matrix[payer] -= currentUserShare;
-    }
+    Object.entries(shares).forEach(([userId, shareAmt]) => {
+      if (userId !== payer && matrix[userId] && matrix[userId][payer] !== undefined) {
+        matrix[userId][payer] += shareAmt;
+      }
+    });
   });
 
-  // For settlements
   settlements.forEach(set => {
     const amt = parseFloat(set.amount) || 0;
-    if (set.payerId === currentUserId && matrix[set.payeeId] !== undefined) {
-      // Current user paid friend -> user owes less to friend / friend owes more
-      matrix[set.payeeId] += amt;
-    } else if (set.payeeId === currentUserId && matrix[set.payerId] !== undefined) {
-      // Friend paid current user -> friend owes less / user owes more
-      matrix[set.payerId] -= amt;
+    if (matrix[set.payerId] && matrix[set.payerId][set.payeeId] !== undefined) {
+      matrix[set.payerId][set.payeeId] -= amt;
     }
   });
 
-  Object.keys(matrix).forEach(id => {
-    matrix[id] = Math.round(matrix[id] * 100) / 100;
+  const transactions = [];
+  const processed = new Set();
+
+  members.forEach(m1 => {
+    members.forEach(m2 => {
+      if (m1.id !== m2.id) {
+        const pairKey = [m1.id, m2.id].sort().join('-');
+        if (!processed.has(pairKey)) {
+          processed.add(pairKey);
+          let net = matrix[m1.id][m2.id] - matrix[m2.id][m1.id];
+          net = Math.round(net * 100) / 100;
+          if (net > 0) {
+            transactions.push({ from: m1.id, to: m2.id, amount: net });
+          } else if (net < 0) {
+            transactions.push({ from: m2.id, to: m1.id, amount: -net });
+          }
+        }
+      }
+    });
   });
 
-  return matrix;
+  transactions.sort((a, b) => b.amount - a.amount);
+  return transactions;
+};
+
+
+/**
+ * THE CANONICAL LEDGER ENGINE
+ * Takes all transactions and computes exact balances for global context and per-group contexts.
+ */
+export const buildLedger = (expenses = [], settlements = [], currentUserId, friends = [], groups = []) => {
+  const ledger = {
+    global: {
+      netBalances: {}, // User's absolute net balance (Paid - Consumed)
+      pairwiseDebts: {}, // Who owes whom globally
+      totalOwes: 0,
+      totalIsOwed: 0,
+      totalPaid: {},
+      totalConsumed: {},
+      totalSettledPaid: {},
+      totalSettledReceived: {}
+    },
+    groups: {}
+  };
+
+  // Initialize global stats
+  friends.forEach(f => {
+    ledger.global.netBalances[f.id] = 0;
+    ledger.global.pairwiseDebts[f.id] = 0;
+    ledger.global.totalPaid[f.id] = 0;
+    ledger.global.totalConsumed[f.id] = 0;
+    ledger.global.totalSettledPaid[f.id] = 0;
+    ledger.global.totalSettledReceived[f.id] = 0;
+  });
+
+  // Group transactions by Group ID
+  const groupExps = { 'non-group': [] };
+  const groupSets = { 'non-group': [] };
+  
+  groups.forEach(g => {
+    groupExps[g.id] = [];
+    groupSets[g.id] = [];
+    ledger.groups[g.id] = {
+      netBalances: {},
+      pairwiseDebts: [],
+      transactions: [],
+      totalOwes: 0,
+      totalIsOwed: 0
+    };
+    (g.members || []).forEach(mId => {
+      ledger.groups[g.id].netBalances[mId] = 0;
+    });
+  });
+
+  expenses.forEach(e => {
+    const gId = e.groupId || 'non-group';
+    if (!groupExps[gId]) groupExps[gId] = [];
+    groupExps[gId].push(e);
+
+    // Global Paid vs Consumed
+    const shares = calculateExpenseShares(e, friends);
+    const amt = parseFloat(e.amount) || 0;
+    if (ledger.global.totalPaid[e.paidBy] !== undefined) {
+      ledger.global.totalPaid[e.paidBy] += amt;
+    }
+    Object.entries(shares).forEach(([uid, share]) => {
+      if (ledger.global.totalConsumed[uid] !== undefined) {
+        ledger.global.totalConsumed[uid] += share;
+      }
+    });
+  });
+
+  settlements.forEach(s => {
+    const gId = s.groupId || 'non-group';
+    if (!groupSets[gId]) groupSets[gId] = [];
+    groupSets[gId].push(s);
+
+    const amt = parseFloat(s.amount) || 0;
+    if (ledger.global.totalSettledPaid[s.payerId] !== undefined) {
+      ledger.global.totalSettledPaid[s.payerId] += amt;
+    }
+    if (ledger.global.totalSettledReceived[s.payeeId] !== undefined) {
+      ledger.global.totalSettledReceived[s.payeeId] += amt;
+    }
+  });
+
+  const globalTransactionsList = [];
+
+  // 1. Process each group context independently
+  const allGroupIds = new Set([...Object.keys(groupExps), ...Object.keys(groupSets)]);
+  
+  allGroupIds.forEach(gId => {
+    const gExps = groupExps[gId] || [];
+    const gSets = groupSets[gId] || [];
+    const group = groups.find(g => g.id === gId);
+    
+    // Resolve members for this context
+    const contextMembers = (group && group.members && group.members.length > 0)
+      ? group.members.map(mId => friends.find(f => f.id === mId) || { id: mId }).filter(Boolean)
+      : friends;
+
+    // Calculate strict absolute net balances for this context
+    const netBalances = {};
+    contextMembers.forEach(m => { netBalances[m.id] = 0; });
+
+    gExps.forEach(exp => {
+      const amt = parseFloat(exp.amount) || 0;
+      const shares = calculateExpenseShares(exp, contextMembers);
+      if (netBalances[exp.paidBy] !== undefined) netBalances[exp.paidBy] += amt;
+      Object.entries(shares).forEach(([uid, share]) => {
+        if (netBalances[uid] !== undefined) netBalances[uid] -= share;
+      });
+    });
+
+    gSets.forEach(set => {
+      const amt = parseFloat(set.amount) || 0;
+      if (netBalances[set.payerId] !== undefined) netBalances[set.payerId] += amt;
+      if (netBalances[set.payeeId] !== undefined) netBalances[set.payeeId] -= amt;
+    });
+
+    // Rounding & applying to group ledger
+    Object.keys(netBalances).forEach(id => {
+      netBalances[id] = Math.round(netBalances[id] * 100) / 100;
+      if (ledger.global.netBalances[id] !== undefined) {
+        ledger.global.netBalances[id] += netBalances[id];
+      }
+    });
+
+    let contextTransactions = [];
+    // Always use exact pairwise debts to avoid simplification
+    contextTransactions = getExactPairwiseDebts(gExps, gSets, contextMembers);
+
+    globalTransactionsList.push(...contextTransactions);
+
+    if (group) {
+      ledger.groups[group.id].netBalances = netBalances;
+      ledger.groups[group.id].pairwiseDebts = contextTransactions;
+      
+      // Calculate current user's totals for this group
+      contextTransactions.forEach(tx => {
+        if (tx.from === currentUserId) ledger.groups[group.id].totalOwes += tx.amount;
+        if (tx.to === currentUserId) ledger.groups[group.id].totalIsOwed += tx.amount;
+      });
+    }
+  });
+
+  // 2. Build Global Pairwise Debts matrix
+  globalTransactionsList.forEach(tx => {
+    if (tx.from === currentUserId && ledger.global.pairwiseDebts[tx.to] !== undefined) {
+      ledger.global.pairwiseDebts[tx.to] -= tx.amount; // You owe them
+    } else if (tx.to === currentUserId && ledger.global.pairwiseDebts[tx.from] !== undefined) {
+      ledger.global.pairwiseDebts[tx.from] += tx.amount; // They owe you
+    }
+  });
+
+  Object.keys(ledger.global.pairwiseDebts).forEach(id => {
+    const bal = Math.round(ledger.global.pairwiseDebts[id] * 100) / 100;
+    ledger.global.pairwiseDebts[id] = bal;
+    
+    if (bal > 0) ledger.global.totalIsOwed += bal;
+    if (bal < 0) ledger.global.totalOwes += Math.abs(bal);
+  });
+
+  // Round global net balances
+  Object.keys(ledger.global.netBalances).forEach(id => {
+    ledger.global.netBalances[id] = Math.round(ledger.global.netBalances[id] * 100) / 100;
+  });
+
+  return ledger;
 };

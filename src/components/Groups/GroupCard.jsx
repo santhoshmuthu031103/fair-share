@@ -1,6 +1,7 @@
 import React from 'react';
 import { formatCurrency } from '../../utils/formatters';
 import { Users, ChevronRight } from 'lucide-react';
+import { avatarOnError, getAvatarUrl } from '../../utils/avatarHelper';
 
 export const GroupCard = ({ group, friends = [], netBalance, balance, currency, onClick }) => {
   const actualBalance = netBalance !== undefined ? netBalance : (balance || 0);
@@ -63,9 +64,10 @@ export const GroupCard = ({ group, friends = [], netBalance, balance, currency, 
             {memberObjList.slice(0, 4).map((member, idx) => (
               <img
                 key={member.id}
-                src={member.avatar}
+                src={getAvatarUrl(member)}
                 alt={member.name}
                 title={member.name}
+                onError={avatarOnError(member.name)}
                 style={{
                   width: '28px',
                   height: '28px',

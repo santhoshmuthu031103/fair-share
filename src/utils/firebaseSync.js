@@ -1,5 +1,6 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getDatabase, ref, onValue, set, get, remove } from 'firebase/database';
+import { getAuth } from 'firebase/auth';
 
 // Real Firebase project config
 const firebaseConfig = {
@@ -13,14 +14,18 @@ const firebaseConfig = {
 };
 
 let db = null;
+let auth = null;
 
 try {
   const existingApps = getApps();
   const app = existingApps.length > 0 ? existingApps[0] : initializeApp(firebaseConfig);
   db = getDatabase(app);
+  auth = getAuth(app);
 } catch (err) {
   console.warn('Firebase init error:', err);
 }
+
+export { auth };
 
 /**
  * Sanitize phone number or email for use as a Firebase Realtime Database path key
@@ -90,6 +95,20 @@ export const lookupCloudUser = async (phoneOrEmail) => {
     return null;
   } catch (err) {
     console.warn('lookupCloudUser error:', err);
+    return null;
+  }
+};
+
+/**
+ * Look up a registered user in Firebase cloud by their unique auth UID.
+ */
+export const fetchCloudUserProfile = async (uid) => {
+  if (!db || !uid) return null;
+  try {
+    const snapshot = await get(ref(db, `users/${uid}`));
+    return snapshot.exists() ? snapshot.val() : null;
+  } catch (err) {
+    console.warn('fetchCloudUserProfile error:', err);
     return null;
   }
 };

@@ -1,4 +1,5 @@
 import React from 'react';
+import { avatarOnError, getAvatarUrl } from '../../utils/avatarHelper';
 
 export const Header = ({ 
   currentUser, 
@@ -11,13 +12,12 @@ export const Header = ({
         onClick={onOpenProfile}
         title="Tap to view your profile details"
       >
-        {currentUser?.avatar ? (
-          <img src={currentUser.avatar} alt={currentUser.name} className="avatar-img" />
-        ) : (
-          <div className="avatar-placeholder" style={{ backgroundColor: currentUser?.color || '#702e24' }}>
-            {currentUser?.name ? currentUser.name.charAt(0) : 'Y'}
-          </div>
-        )}
+        <img
+          src={getAvatarUrl(currentUser)}
+          alt={currentUser?.name || 'You'}
+          className="avatar-img"
+          onError={avatarOnError(currentUser?.name || 'You')}
+        />
         <div>
           <div style={{ fontSize: '0.95rem', fontWeight: '800', lineHeight: '1.2' }}>
             {currentUser?.name || 'You'}

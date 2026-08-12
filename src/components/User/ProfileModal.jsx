@@ -1,62 +1,64 @@
 import React, { useState } from 'react';
 import { X, User, Phone, Mail, LogOut, Trash2, Check, Sparkles, AlertTriangle, Upload, Shuffle, Smile } from 'lucide-react';
+import { avatarOnError, getAvatarUrl, getFallbackAvatarUrl } from '../../utils/avatarHelper';
 
 export const AVATAR_CHARACTERS = [
   {
     id: 'alex_cool',
     name: 'Alex',
     tag: 'Male (Cool) 😎',
-    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex&mouth=smile&eyes=happy',
+    url: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Alex&mouth=smile&eyes=happy&backgroundColor=b6e3f4',
   },
   {
     id: 'leo_chill',
     name: 'Leo',
     tag: 'Male (Chill) 🕶️',
-    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Leo&mouth=smile',
+    url: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Leo&mouth=smile&backgroundColor=c0aede',
   },
   {
     id: 'rohan_smart',
     name: 'Rohan',
     tag: 'Male (Smart) 💼',
-    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Rohan&mouth=smile&eyes=default',
+    url: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Rohan&mouth=smile&eyes=default&backgroundColor=d1d4f9',
   },
   {
     id: 'dev_artist',
     name: 'Dev',
     tag: 'Male (Creative) 🎨',
-    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Dev&mouth=smile',
+    url: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Dev&mouth=smile&backgroundColor=ffd5dc',
   },
   {
     id: 'ryan_active',
     name: 'Ryan',
     tag: 'Male (Sporty) 🚀',
-    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ryan&mouth=smile',
+    url: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Ryan&mouth=smile&backgroundColor=ffdfbf',
   },
   {
     id: 'kabir_friendly',
     name: 'Kabir',
     tag: 'Male (Warm) 😊',
-    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Kabir&mouth=smile',
+    url: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Kabir&mouth=smile&backgroundColor=b6e3f4',
   },
   {
     id: 'maya_joy',
     name: 'Maya',
     tag: 'Female (Joy) 🌸',
-    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Maya&mouth=smile&eyes=happy',
+    url: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Maya&mouth=smile&eyes=happy&backgroundColor=c0aede',
   },
   {
     id: 'ananya_witty',
     name: 'Ananya',
     tag: 'Female (Witty) 💡',
-    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ananya&mouth=smile&eyes=happy',
+    url: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Ananya&mouth=smile&eyes=happy&backgroundColor=d1d4f9',
   }
 ];
+
 
 export const ProfileModal = ({ currentUser, onClose, onUpdateProfile, onLogout, onResetData }) => {
   const [name, setName] = useState(currentUser?.name || '');
   const [email, setEmail] = useState(currentUser?.email || '');
   const [phone, setPhone] = useState(currentUser?.phone || '');
-  const [avatar, setAvatar] = useState(currentUser?.avatar || AVATAR_CHARACTERS[0].url);
+  const [avatar, setAvatar] = useState(currentUser?.avatar ? getAvatarUrl(currentUser) : AVATAR_CHARACTERS[0].url);
   const [isSaved, setIsSaved] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
@@ -75,12 +77,7 @@ export const ProfileModal = ({ currentUser, onClose, onUpdateProfile, onLogout, 
 
   const handleRollRandom = () => {
     const randomSeed = Math.random().toString(36).substring(2, 8);
-    const emotions = ['smile', 'laughing', 'openSmile', 'twinkle'];
-    const eyes = ['happy', 'sparkle', 'default'];
-    const randomEmotion = emotions[Math.floor(Math.random() * emotions.length)];
-    const randomEye = eyes[Math.floor(Math.random() * eyes.length)];
-    const newAvatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${randomSeed}&mouth=${randomEmotion}&eyes=${randomEye}&style=circle`;
-    setAvatar(newAvatarUrl);
+    setAvatar(getFallbackAvatarUrl(randomSeed));
   };
 
   const handlePhotoUpload = (e) => {
@@ -124,11 +121,12 @@ export const ProfileModal = ({ currentUser, onClose, onUpdateProfile, onLogout, 
             marginBottom: '16px',
           }}
         >
-          <div style={{ position: 'relative' }}>
+          <div style={{ position: 'relative', flexShrink: 0 }}>
             <img 
               src={avatar} 
               alt={name} 
               style={{ width: '64px', height: '64px', borderRadius: '50%', border: '3px solid var(--accent-mint)', objectFit: 'cover' }} 
+              onError={avatarOnError(name)}
             />
             <button
               type="button"
@@ -153,9 +151,9 @@ export const ProfileModal = ({ currentUser, onClose, onUpdateProfile, onLogout, 
               <Shuffle size={12} />
             </button>
           </div>
-          <div>
-            <div style={{ fontWeight: '800', fontSize: '1.15rem' }}>{name || 'Your Name'}</div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{email || phone || 'Registered Account'}</div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontWeight: '800', fontSize: '1.15rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name || 'Your Name'}</div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email || phone || 'Registered Account'}</div>
             <div style={{ fontSize: '0.75rem', color: 'var(--accent-mint)', fontWeight: '700', marginTop: '2px' }}>
               ● Tap any character below to change
             </div>
@@ -208,6 +206,7 @@ export const ProfileModal = ({ currentUser, onClose, onUpdateProfile, onLogout, 
                     src={char.url} 
                     alt={char.name} 
                     style={{ width: '44px', height: '44px', borderRadius: '50%', marginBottom: '4px' }} 
+                    onError={avatarOnError(char.name)}
                   />
                   <span style={{ fontSize: '0.74rem', fontWeight: '800', textAlign: 'center', color: isSelected ? 'var(--accent-mint)' : 'var(--text-primary)' }}>
                     {char.name}

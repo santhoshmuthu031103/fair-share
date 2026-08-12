@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { calculateNetBalances, simplifyDebts } from '../../utils/debtCalculator';
+import { buildLedger, calculateExpenseShares } from '../../utils/debtCalculator';
 import { formatCurrency, formatDate, getCategoryMeta, CATEGORIES } from '../../utils/formatters';
 import { 
   ArrowLeft, 
@@ -21,6 +21,7 @@ import {
   X,
   Check
 } from 'lucide-react';
+import { avatarOnError, getAvatarUrl } from '../../utils/avatarHelper';
 
 const ICON_MAP = { Utensils, ShoppingBag, Home, Zap, Plane, Film, Tag, Receipt };
 
@@ -53,9 +54,10 @@ export const GroupDetail = ({
   const groupExps = expenses.filter(e => e.groupId === group.id);
   const groupSets = settlements.filter(s => s.groupId === group.id);
 
-  // Calculate Net Balances
-  const netBalances = calculateNetBalances(groupExps, groupSets, groupMembers.length > 0 ? groupMembers : friends);
-  const simplifiedTransactions = simplifyDebts(netBalances);
+  // Calculate Net Balances using Ledger Engine
+  const ledger = buildLedger(expenses, settlements, currentUserId, friends, [group]);
+  const netBalances = ledger.groups[group.id]?.netBalances || {};
+  const transactionsToDisplay = ledger.groups[group.id]?.pairwiseDebts || [];
 
   // Group Total Expense Spend
   const totalGroupSpend = groupExps.reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0);
@@ -194,7 +196,7 @@ export const GroupDetail = ({
                 whiteSpace: 'nowrap',
               }}
             >
-              <img src={m.avatar} alt={m.name} style={{ width: '20px', height: '20px', borderRadius: '50%' }} />
+              <img src={getAvatarUrl(m)} alt={m.name} style={{ width: '20px', height: '20px', borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }} onError={avatarOnError(m.name)} />
               <span>{m.id === currentUserId ? 'You' : m.name.split(' ')[0]}</span>
             </div>
           ))}
@@ -221,35 +223,22 @@ export const GroupDetail = ({
           </button>
         </div>
 
-        {/* Simplified Debts Card */}
+        {/* Who Owes Who Card */}
         <div className="card" style={{ marginBottom: '16px', background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ color: 'var(--accent-amber)', fontSize: '1.1rem' }}>✨</span>
-              <span style={{ fontWeight: '800', fontSize: '0.95rem' }}>Simplified Debts</span>
+              <span style={{ color: 'var(--accent-amber)', fontSize: '1.1rem' }}>⚖️</span>
+              <span style={{ fontWeight: '800', fontSize: '0.95rem' }}>Who Owes Who</span>
             </div>
-
-            <button 
-              onClick={() => onToggleSimplifyDebts(group.id)}
-              className="badge"
-              style={{ 
-                background: group.simplifyDebts !== false ? 'rgba(16, 185, 129, 0.15)' : 'var(--bg-input)',
-                color: group.simplifyDebts !== false ? 'var(--accent-mint)' : 'var(--text-muted)',
-                cursor: 'pointer',
-                border: 'none',
-              }}
-            >
-              {group.simplifyDebts !== false ? 'ON' : 'OFF'}
-            </button>
           </div>
 
-          {simplifiedTransactions.length === 0 ? (
+          {transactionsToDisplay.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '12px 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
               <CheckCircle2 size={24} color="var(--accent-mint)" style={{ margin: '0 auto 6px auto' }} />
               Everyone in this group is all settled up! 🎉
             </div>
           ) : (
-            simplifiedTransactions.map((tx, idx) => {
+            transactionsToDisplay.map((tx, idx) => {
               const isUserPayer = tx.from === currentUserId;
               const isUserPayee = tx.to === currentUserId;
 
@@ -261,13 +250,13 @@ export const GroupDetail = ({
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     padding: '10px 0',
-                    borderBottom: idx < simplifiedTransactions.length - 1 ? '1px solid var(--border-color)' : 'none',
+                    borderBottom: idx < transactionsToDisplay.length - 1 ? '1px solid var(--border-color)' : 'none',
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '-4px' }}>
-                      <img src={getUserAvatar(tx.from)} alt="From" style={{ width: '28px', height: '28px', borderRadius: '50%' }} />
-                      <img src={getUserAvatar(tx.to)} alt="To" style={{ width: '28px', height: '28px', borderRadius: '50%', marginLeft: '-8px' }} />
+                      <img src={getUserAvatar(tx.from) || getAvatarUrl({ id: tx.from })} alt="From" style={{ width: '28px', height: '28px', borderRadius: '50%' }} onError={avatarOnError(getUserName(tx.from))} />
+                      <img src={getUserAvatar(tx.to) || getAvatarUrl({ id: tx.to })} alt="To" style={{ width: '28px', height: '28px', borderRadius: '50%', marginLeft: '-8px' }} onError={avatarOnError(getUserName(tx.to))} />
                     </div>
                     <div style={{ fontSize: '0.86rem' }}>
                       {isUserPayer ? (
@@ -448,11 +437,11 @@ export const GroupDetail = ({
                           borderColor: isSelected ? 'var(--accent-mint)' : 'var(--border-color)',
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <img src={f.avatar} alt={f.name} style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
-                          <div>
-                            <div style={{ fontWeight: '700', fontSize: '0.9rem' }}>{f.name}</div>
-                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{f.email || f.phone}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                          <img src={getAvatarUrl(f)} alt={f.name} style={{ width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }} onError={avatarOnError(f.name)} />
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontWeight: '700', fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.email || f.phone}</div>
                           </div>
                         </div>
                         <div 
@@ -539,16 +528,23 @@ export const GroupDetail = ({
             <h3 style={{ fontSize: '0.95rem', fontWeight: '800', marginBottom: '10px' }}>Split Breakdown</h3>
             <div style={{ background: 'var(--bg-input)', padding: '12px', borderRadius: '14px', marginBottom: '16px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {groupMembers.map(m => (
-                  <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                    <span>{m.id === currentUserId ? 'You' : m.name}</span>
-                    <span style={{ fontWeight: '700' }}>
-                      {selectedExpense.splitType === 'equal' && formatCurrency(selectedExpense.amount / groupMembers.length, currency)}
-                      {selectedExpense.splitType === 'exact' && formatCurrency(selectedExpense.splits?.[m.id] || 0, currency)}
-                      {selectedExpense.splitType === 'percentage' && formatCurrency((selectedExpense.amount * (selectedExpense.splits?.[m.id] || 0)) / 100, currency)}
-                    </span>
-                  </div>
-                ))}
+                {(() => {
+                  const shares = calculateExpenseShares(selectedExpense, friends);
+                  const recipients = Object.entries(shares)
+                    .filter(([uid, amt]) => amt > 0.005)
+                    .map(([uid, amt]) => {
+                      const member = friends.find(f => f.id === uid) || { id: uid, name: 'Unknown' };
+                      return { member, amt };
+                    });
+                  return recipients.map(({ member, amt }) => (
+                    <div key={member.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                      <span>{member.id === currentUserId ? 'You' : member.name}</span>
+                      <span style={{ fontWeight: '700' }}>
+                        {formatCurrency(amt, currency)}
+                      </span>
+                    </div>
+                  ));
+                })()}
               </div>
             </div>
 

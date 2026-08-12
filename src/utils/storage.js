@@ -30,9 +30,9 @@ export const getMyUserProfile = () => {
   const defaultProfile = {
     id: defaultId,
     name: 'You',
-    email: 'you@example.com',
-    phone: '+91 9876543210',
-    avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=You`,
+    email: '',
+    phone: '',
+    avatar: `https://api.dicebear.com/9.x/avataaars/svg?seed=You&mouth=smile&eyes=happy&backgroundColor=b6e3f4,c0aede&backgroundType=gradientLinear`,
     color: '#10b981',
   };
   localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(defaultProfile));
@@ -49,11 +49,20 @@ export const loadInitialState = () => {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.groups) && Array.isArray(parsed.expenses)) {
-        // Ensure myProfile is in friends list
         const otherFriends = (parsed.friends || []).filter(f => f.id !== myProfile.id);
+        // Deduplicate by ID; also strip ghost "You" entries with different IDs (stale sync artifacts)
+        const seenIds = new Set([myProfile.id]);
+        const dedupedFriends = otherFriends.filter(f => {
+          if (!f || !f.id || seenIds.has(f.id)) return false;
+          // Strip any entry named "You" — only the canonical myProfile should have that label
+          if (String(f.name || '').trim().toLowerCase() === 'you') return false;
+          seenIds.add(f.id);
+          return true;
+        });
         return {
           ...parsed,
-          friends: [myProfile, ...otherFriends],
+          groups: (parsed.groups || []).filter(g => g && g.name), // purge ghost/nameless groups
+          friends: [myProfile, ...dedupedFriends],
           activeCurrency: parsed.activeCurrency || '₹',
           isDarkMode: parsed.isDarkMode !== undefined ? parsed.isDarkMode : false,
         };

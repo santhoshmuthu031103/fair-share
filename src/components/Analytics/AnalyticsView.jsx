@@ -1,6 +1,7 @@
 import React from 'react';
 import { CATEGORIES, getCategoryMeta, formatCurrency } from '../../utils/formatters';
 import { TrendingUp } from 'lucide-react';
+import { avatarOnError, getAvatarUrl } from '../../utils/avatarHelper';
 
 export const AnalyticsView = ({ expenses, groups, friends, currency }) => {
   const totalSpend = expenses.reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0);
@@ -111,7 +112,7 @@ export const AnalyticsView = ({ expenses, groups, friends, currency }) => {
           return (
             <div key={uId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: idx < sortedPayers.length - 1 ? '1px solid var(--border-color)' : 'none' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <img src={friend.avatar} alt={friend.name} style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
+                <img src={getAvatarUrl(friend)} alt={friend.name} style={{ width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }} onError={avatarOnError(friend.name)} />
                 <div>
                   <div style={{ fontSize: '0.88rem', fontWeight: '700' }}>
                     {friend.name}

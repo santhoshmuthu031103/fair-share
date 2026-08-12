@@ -1,10 +1,12 @@
 import React from 'react';
-import { getPairwiseBalances } from '../../utils/debtCalculator';
+import { buildLedger } from '../../utils/debtCalculator';
 import { formatCurrency } from '../../utils/formatters';
 import { UserPlus, DollarSign, Trash2, Share2, Phone, Mail } from 'lucide-react';
+import { avatarOnError, getAvatarUrl } from '../../utils/avatarHelper';
 
 export const FriendsList = ({ 
   friends, 
+  groups = [],
   expenses, 
   settlements, 
   currency, 
@@ -14,7 +16,8 @@ export const FriendsList = ({
   onDeleteFriend 
 }) => {
   const currentUserId = currentUser?.id || friends[0]?.id;
-  const pairwise = getPairwiseBalances(expenses, settlements, currentUserId, friends);
+  const ledger = buildLedger(expenses, settlements, currentUserId, friends, groups);
+  const pairwise = ledger.global.pairwiseDebts;
   const friendsExceptYou = friends.filter(f => f.id !== currentUserId);
 
   const handleShareInvite = () => {
@@ -80,22 +83,21 @@ export const FriendsList = ({
           const netBal = pairwise[friend.id] || 0;
 
           return (
-            <div key={friend.id} className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <img src={friend.avatar} alt={friend.name} className="avatar-img" />
-                <div>
-                  <div style={{ fontWeight: '700', fontSize: '0.95rem' }}>
+            <div key={friend.id} className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                <img src={getAvatarUrl(friend)} alt={friend.name} className="avatar-img" style={{ flexShrink: 0 }} onError={avatarOnError(friend.name)} />
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: '700', fontSize: '0.95rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {friend.name}
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {friend.phone && <span>{friend.phone}</span>}
-                    {friend.phone && friend.email && <span>•</span>}
-                    {friend.email && <span>{friend.email}</span>}
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    {friend.phone && <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{friend.phone}</div>}
+                    {friend.email && <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{friend.email}</div>}
                   </div>
                 </div>
               </div>
 
-              <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
                 <div>
                   {Math.abs(netBal) < 0.01 ? (
                     <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: '600' }}>settled up</span>

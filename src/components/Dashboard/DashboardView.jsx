@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { calculateNetBalances } from '../../utils/debtCalculator';
+import { buildLedger, calculateExpenseShares } from '../../utils/debtCalculator';
 import { formatCurrency, formatDate, getCategoryMeta, CATEGORIES } from '../../utils/formatters';
 import { 
   Users, 
@@ -16,6 +16,7 @@ import {
   Calendar,
   BarChart3
 } from 'lucide-react';
+import { avatarOnError, getAvatarUrl } from '../../utils/avatarHelper';
 
 export const DashboardView = ({
   groups,
@@ -29,60 +30,39 @@ export const DashboardView = ({
   onOpenAddExpense
 }) => {
   const currentUserId = currentUser?.id || friends[0]?.id;
-  const [selectedSpender, setSelectedSpender] = useState(null);
+  const [expandedMemberId, setExpandedMemberId] = useState(null);
   const [selectedChartDay, setSelectedChartDay] = useState(null);
 
-  // 1. Calculate overall balances for everyone
-  const overallBalances = calculateNetBalances(expenses, settlements, friends);
-  const myNet = overallBalances[currentUserId] || 0;
+  // 1. Build canonical ledger
+  const ledger = buildLedger(expenses, settlements, currentUserId, friends, groups);
+  const myNet = ledger.global.netBalances[currentUserId] || 0;
 
   // Calculate total owed to user and total user owes
-  let totalYouAreOwed = 0;
-  let totalYouOwe = 0;
+  const totalYouAreOwed = ledger.global.totalIsOwed || 0;
+  const totalYouOwe = ledger.global.totalOwes || 0;
   let totalGroupSpend = expenses.reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0);
 
-  groups.forEach(g => {
-    const groupExps = expenses.filter(e => e.groupId === g.id);
-    const groupSets = settlements.filter(s => s.groupId === g.id);
-    const groupMembers = (g.members || []).map(mId => friends.find(f => f.id === mId)).filter(Boolean);
-    const groupBals = calculateNetBalances(groupExps, groupSets, groupMembers.length > 0 ? groupMembers : friends);
-    
-    const userBal = groupBals[currentUserId] || 0;
-    if (userBal > 0) totalYouAreOwed += userBal;
-    if (userBal < 0) totalYouOwe += Math.abs(userBal);
-  });
+  // Deduplicate friends by ID to prevent duplicate "You" entries
+  const uniqueFriends = friends.reduce((acc, f) => {
+    if (!acc.find(x => x.id === f.id)) acc.push(f);
+    return acc;
+  }, []);
 
   // Calculate detailed spending statistics per member
-  const memberStats = friends.map(friend => {
-    const totalPaid = expenses
-      .filter(e => e.paidBy === friend.id)
-      .reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0);
-
-    let totalConsumed = 0;
-    expenses.forEach(exp => {
-      const activeMembers = (exp.recipientIds && exp.recipientIds.length > 0)
-        ? friends.filter(m => exp.recipientIds.includes(m.id))
-        : friends;
-      
-      const isIncluded = activeMembers.some(m => m.id === friend.id);
-      if (isIncluded && activeMembers.length > 0) {
-        if (exp.splitType === 'equal') {
-          totalConsumed += (parseFloat(exp.amount) || 0) / activeMembers.length;
-        } else if (exp.splitType === 'exact') {
-          totalConsumed += (parseFloat(exp.splits?.[friend.id]) || 0);
-        } else if (exp.splitType === 'percentage') {
-          totalConsumed += ((parseFloat(exp.amount) || 0) * (parseFloat(exp.splits?.[friend.id]) || 0)) / 100;
-        }
-      }
-    });
-
-    const netBal = overallBalances[friend.id] || 0;
+  const memberStats = uniqueFriends.map(friend => {
+    const totalPaid = ledger.global.totalPaid[friend.id] || 0;
+    const totalConsumed = ledger.global.totalConsumed[friend.id] || 0;
+    const totalSettledPaid = ledger.global.totalSettledPaid?.[friend.id] || 0;
+    const totalSettledReceived = ledger.global.totalSettledReceived?.[friend.id] || 0;
+    const netBal = ledger.global.netBalances[friend.id] || 0;
     const totalLent = totalPaid > totalConsumed ? totalPaid - totalConsumed : 0;
 
     return {
       friend,
       totalPaid,
       totalConsumed,
+      totalSettledPaid,
+      totalSettledReceived,
       totalLent,
       netBal,
     };
@@ -242,7 +222,7 @@ export const DashboardView = ({
                 >
                   {/* Amount label on hover/top */}
                   <div style={{ fontSize: '0.6rem', fontWeight: '700', color: isSelected ? 'var(--accent-mint)' : 'var(--text-muted)', marginBottom: '4px', whiteSpace: 'nowrap' }}>
-                    {dayItem.amount > 0 ? `₹${Math.round(dayItem.amount)}` : '0'}
+                    {dayItem.amount > 0 ? `${currency}${Math.round(dayItem.amount)}` : '0'}
                   </div>
 
                   {/* The Bar */}
@@ -252,9 +232,9 @@ export const DashboardView = ({
                       maxWidth: '28px',
                       height: `${heightPercent}%`,
                       background: isSelected 
-                        ? 'linear-gradient(180deg, #1d4ed8, #2563eb)' 
+                        ? 'var(--accent-mint)' 
                         : hasSpend 
-                          ? 'linear-gradient(180deg, var(--accent-mint), rgba(37, 99, 235, 0.6))' 
+                          ? 'var(--accent-mint-glow)' 
                           : 'var(--bg-input)',
                       borderRadius: '8px 8px 4px 4px',
                       transition: 'all 0.25s ease',
@@ -310,53 +290,345 @@ export const DashboardView = ({
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {memberStats.map(({ friend, totalPaid, totalLent, netBal }) => {
+          {memberStats.map(({ friend, totalPaid, totalConsumed, totalSettledPaid, totalSettledReceived, totalLent, netBal }) => {
             const isMe = friend.id === currentUserId;
+            const isExpanded = expandedMemberId === friend.id;
+            const paidList = expenses.filter(e => e.paidBy === friend.id);
+            const pairDebts = ledger.global.pairwiseDebts;
+            const amtVsMe = isMe ? null : (pairDebts[friend.id] || 0);
 
             return (
               <div
                 key={friend.id}
-                onClick={() => setSelectedSpender(friend)}
                 className="card"
                 style={{
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
+                  flexDirection: 'column',
                   cursor: 'pointer',
-                  padding: '12px 14px',
+                  padding: '0',
                   border: '1px solid var(--border-color)',
-                  transition: 'transform 0.15s ease',
+                  overflow: 'hidden',
+                  transition: 'all 0.2s ease',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
-                  <img src={friend.avatar} alt={friend.name} className="avatar-img" style={{ width: '40px', height: '40px' }} />
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: '700', fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span>{isMe ? 'You' : friend.name}</span>
-                      {isMe && <span className="badge badge-mint" style={{ fontSize: '0.65rem', padding: '1px 6px' }}>You</span>}
+                {/* Header (always visible) */}
+                <div
+                  onClick={() => setExpandedMemberId(isExpanded ? null : friend.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 14px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                    <img src={getAvatarUrl(friend)} alt={friend.name} className="avatar-img" style={{ width: '40px', height: '40px' }} onError={avatarOnError(friend.name)} />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: '700', fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>{isMe ? 'You' : friend.name}</span>
+                        {isMe && <span className="badge badge-mint" style={{ fontSize: '0.65rem', padding: '1px 6px' }}>You</span>}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        Paid: <strong style={{ color: 'var(--text-secondary)' }}>{formatCurrency(totalPaid, currency)}</strong>
+                        {totalLent > 0 && <span> • Lent: <strong style={{ color: 'var(--accent-mint)' }}>{formatCurrency(totalLent, currency)}</strong></span>}
+                      </div>
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      Paid: <strong style={{ color: 'var(--text-secondary)' }}>{formatCurrency(totalPaid, currency)}</strong>
-                      {totalLent > 0 && <span> • Lent: <strong style={{ color: 'var(--accent-mint)' }}>{formatCurrency(totalLent, currency)}</strong></span>}
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                    <div style={{ textAlign: 'right' }}>
+                      {isMe ? (
+                        <>
+                          <div style={{ 
+                            fontWeight: '800', 
+                            fontSize: '0.92rem', 
+                            color: netBal > 0.01 ? 'var(--accent-mint)' : netBal < -0.01 ? 'var(--accent-coral)' : 'var(--text-muted)' 
+                          }}>
+                            {netBal > 0.01 ? `+${formatCurrency(netBal, currency)}` : formatCurrency(netBal, currency)}
+                          </div>
+                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                            {netBal > 0.01 ? 'gets back' : netBal < -0.01 ? 'owes group' : 'settled'}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          {Math.abs(amtVsMe) > 0.005 ? (
+                            <>
+                              <div style={{ 
+                                fontWeight: '800', 
+                                fontSize: '0.92rem', 
+                                color: amtVsMe > 0 ? 'var(--accent-mint)' : 'var(--accent-coral)' 
+                              }}>
+                                {formatCurrency(Math.abs(amtVsMe), currency)}
+                              </div>
+                              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                                {amtVsMe > 0 ? 'owes you' : 'you owe'}
+                              </div>
+                            </>
+                          ) : (
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '600' }}>Settled</div>
+                          )}
+                        </>
+                      )}
                     </div>
+                    <ChevronRight size={16} color="var(--text-muted)" style={{ transform: isExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s ease' }} />
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                  <div style={{ textAlign: 'right' }}>
+                {/* Expanded Details */}
+                {isExpanded && (() => {
+                  // Build per-expense share breakdown for this member
+                  const involvedExpenses = expenses.filter(e => {
+                    const activeMembers = e.recipientIds && e.recipientIds.length > 0
+                      ? e.recipientIds
+                      : friends.map(f => f.id);
+                    return activeMembers.includes(friend.id) || e.paidBy === friend.id;
+                  });
+
+                  const expenseBreakdown = involvedExpenses.map(exp => {
+                    const grpMembers = exp.groupId
+                      ? friends.filter(f => {
+                          const grp = groups.find(g => g.id === exp.groupId);
+                          return grp ? (grp.members || []).includes(f.id) : true;
+                        })
+                      : friends;
+                    const shares = calculateExpenseShares(exp, grpMembers);
+                    const memberShare = shares[friend.id] || 0;
+                    const memberPaid = exp.paidBy === friend.id ? parseFloat(exp.amount) || 0 : 0;
+                    const grpName = groups.find(g => g.id === exp.groupId)?.name || 'Personal';
+                    return { exp, memberShare, memberPaid, grpName };
+                  }).filter(r => r.memberShare > 0.005 || r.memberPaid > 0.005);
+
+                  // Pairwise debts involving this member already calculated above
+
+                  return (
                     <div style={{ 
-                      fontWeight: '800', 
-                      fontSize: '0.92rem', 
-                      color: netBal > 0.01 ? 'var(--accent-mint)' : netBal < -0.01 ? 'var(--accent-coral)' : 'var(--text-muted)' 
+                      padding: '0 14px 14px 14px', 
+                      borderTop: '1px dashed var(--border-color)', 
+                      background: 'rgba(0,0,0,0.015)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '14px',
+                      marginTop: '2px'
                     }}>
-                      {netBal > 0.01 ? `+${formatCurrency(netBal, currency)}` : formatCurrency(netBal, currency)}
+
+                      {/* ── Section 1: Net summary vs current user ── */}
+                      {!isMe && Math.abs(amtVsMe) > 0.005 && (
+                        <div style={{ marginTop: '12px', padding: '10px 12px', borderRadius: '12px', background: amtVsMe > 0 ? 'rgba(16,185,129,0.08)' : 'rgba(244,63,94,0.08)', border: `1px solid ${amtVsMe > 0 ? 'rgba(16,185,129,0.25)' : 'rgba(244,63,94,0.25)'}` }}>
+                          <div style={{ fontSize: '0.82rem', fontWeight: '800', color: amtVsMe > 0 ? 'var(--accent-mint)' : 'var(--accent-coral)' }}>
+                            {amtVsMe > 0
+                              ? `Owes you ${formatCurrency(amtVsMe, currency)}`
+                              : `You owe them ${formatCurrency(Math.abs(amtVsMe), currency)}`
+                            }
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ── Section 2: Per-expense + settlement timeline ── */}
+                      {(() => {
+                        // Build settlement items for this member
+                        const memberSettlements = settlements.filter(s =>
+                          s.payerId === friend.id || s.payeeId === friend.id
+                        ).map(s => {
+                          const payerName = (s.payerId === currentUserId && isMe) ? 'You' : (friends.find(f => f.id === s.payerId)?.name || 'Unknown');
+                          const payeeName = (s.payeeId === currentUserId && isMe) ? 'You' : (friends.find(f => f.id === s.payeeId)?.name || 'Unknown');
+                          return {
+                            type: 'settlement',
+                            date: s.date || s.createdAt || '',
+                            id: s.id,
+                            amount: parseFloat(s.amount) || 0,
+                            payerName,
+                            payeeName,
+                            payerId: s.payerId,
+                            payeeId: s.payeeId,
+                          };
+                        });
+
+                        // Build expense items
+                        const expenseItems = expenseBreakdown.map(({ exp, memberShare, memberPaid, grpName }) => ({
+                          type: 'expense',
+                          date: exp.date || '',
+                          id: exp.id,
+                          exp,
+                          memberShare,
+                          memberPaid,
+                          grpName,
+                        }));
+
+                        // Merge and sort by date descending (newest first)
+                        const timeline = [...expenseItems, ...memberSettlements].sort((a, b) => {
+                          const dA = new Date(a.date || 0).getTime();
+                          const dB = new Date(b.date || 0).getTime();
+                          return dB - dA;
+                        });
+
+                        return (
+                          <div style={{ marginTop: isMe ? '12px' : '0' }}>
+                            <h4 style={{ fontSize: '0.78rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px', letterSpacing: '0.5px' }}>
+                              Activity Timeline
+                            </h4>
+                            {timeline.length === 0 ? (
+                              <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Not involved in any activity yet.</div>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+                                {timeline.map(item => {
+                                  if (item.type === 'settlement') {
+                                    const isMePayer = item.payerId === currentUserId;
+                                    const isMePayee = item.payeeId === currentUserId;
+                                    return (
+                                      <div key={item.id} style={{
+                                        padding: '8px 10px',
+                                        borderBottom: '1px solid rgba(0,0,0,0.05)',
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        background: isMePayer ? 'rgba(244,63,94,0.05)' : isMePayee ? 'rgba(16,185,129,0.05)' : 'rgba(99,102,241,0.05)',
+                                        borderLeft: `3px solid ${isMePayer ? 'var(--accent-coral)' : isMePayee ? 'var(--accent-mint)' : 'var(--accent-indigo)'}`,
+                                        borderRadius: '0 8px 8px 0',
+                                        margin: '2px 0',
+                                      }}>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                          <div style={{ fontWeight: '700', fontSize: '0.84rem', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            💸 Settlement
+                                          </div>
+                                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                                            {formatDate(item.date)}
+                                          </div>
+                                          <div style={{ fontSize: '0.74rem', marginTop: '3px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                                            {item.payerName} paid {item.payeeName}
+                                          </div>
+                                        </div>
+                                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                          <div style={{
+                                            fontSize: '0.82rem',
+                                            fontWeight: '800',
+                                            color: isMePayee ? 'var(--accent-mint)' : isMePayer ? 'var(--accent-coral)' : 'var(--text-primary)',
+                                          }}>
+                                            {isMePayee ? '+' : isMePayer ? '-' : ''}{formatCurrency(item.amount, currency)}
+                                          </div>
+                                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                                            {isMePayee ? 'received' : isMePayer ? 'paid' : 'settled'}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+
+                                  // Expense item (same as before)
+                                  const { exp, memberShare, memberPaid, grpName } = item;
+                                  const didPay = memberPaid > 0.005;
+                                  const didOwe = memberShare > 0.005;
+                                  const payerFriend = friends.find(f => f.id === exp.paidBy);
+                                  const payerName = didPay
+                                    ? (isMe ? 'You' : friend.name)
+                                    : (exp.paidBy === currentUserId ? 'You' : (payerFriend?.name || '?'));
+                                  return (
+                                    <div key={exp.id} style={{ padding: '8px 0', borderBottom: '1px solid rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                                      <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ fontWeight: '700', fontSize: '0.84rem', marginBottom: '2px' }}>{exp.title}</div>
+                                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{grpName} • {formatDate(exp.date)}</div>
+                                        <div style={{ fontSize: '0.72rem', marginTop: '3px', color: 'var(--text-secondary)' }}>
+                                          Total: {formatCurrency(exp.amount, currency)}
+                                          {' • '}
+                                          Paid by: <strong>{payerName}</strong>
+                                        </div>
+                                      </div>
+                                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                        {didPay && didOwe && exp.paidBy === friend.id && (
+                                          <div style={{ fontSize: '0.76rem', fontWeight: '700', color: 'var(--accent-mint)' }}>
+                                            Paid {formatCurrency(memberPaid, currency)}
+                                          </div>
+                                        )}
+                                        <div style={{ fontSize: '0.76rem', fontWeight: '700', color: didPay && !isMe ? 'var(--text-muted)' : 'var(--accent-coral)' }}>
+                                          Share: {formatCurrency(memberShare, currency)}
+                                        </div>
+                                        {didPay && memberPaid > memberShare + 0.005 && (
+                                          <div style={{ fontSize: '0.7rem', color: 'var(--accent-mint)', fontWeight: '700' }}>
+                                            +{formatCurrency(memberPaid - memberShare, currency)} lent
+                                          </div>
+                                        )}
+                                        {!didPay && didOwe && (
+                                          <div style={{ fontSize: '0.7rem', color: 'var(--accent-coral)', fontWeight: '600' }}>
+                                            owes {payerName}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+
+                      {/* ── Section 3: Balance calculation summary ── */}
+                      {isMe && (
+                        <div style={{ background: 'var(--bg-input)', borderRadius: '12px', padding: '10px 12px', border: '1px solid var(--border-color)' }}>
+                          <h4 style={{ fontSize: '0.78rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px', letterSpacing: '0.5px' }}>Overall Group Balance</h4>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem' }}>
+                              <span style={{ color: 'var(--text-muted)' }}>Total Paid by You</span>
+                              <span style={{ fontWeight: '700' }}>{formatCurrency(totalPaid, currency)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', borderBottom: (totalSettledPaid > 0 || totalSettledReceived > 0) ? '1px dashed var(--border-color)' : 'none', paddingBottom: (totalSettledPaid > 0 || totalSettledReceived > 0) ? '5px' : '0' }}>
+                              <span style={{ color: 'var(--text-muted)' }}>Your total share</span>
+                              <span style={{ fontWeight: '700', color: 'var(--accent-coral)' }}>-{formatCurrency(totalConsumed, currency)}</span>
+                            </div>
+                            {totalSettledPaid > 0 && (
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem' }}>
+                                <span style={{ color: 'var(--text-muted)' }}>Settlements Paid</span>
+                                <span style={{ fontWeight: '700', color: 'var(--accent-mint)' }}>+{formatCurrency(totalSettledPaid, currency)}</span>
+                              </div>
+                            )}
+                            {totalSettledReceived > 0 && (
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', borderBottom: '1px dashed var(--border-color)', paddingBottom: '5px' }}>
+                                <span style={{ color: 'var(--text-muted)' }}>Settlements Received</span>
+                                <span style={{ fontWeight: '700', color: 'var(--accent-coral)' }}>-{formatCurrency(totalSettledReceived, currency)}</span>
+                              </div>
+                            )}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem', paddingTop: '3px', fontWeight: '800' }}>
+                              <span>Net (Group)</span>
+                              <span style={{ color: netBal > 0.01 ? 'var(--accent-mint)' : netBal < -0.01 ? 'var(--accent-coral)' : 'var(--text-muted)' }}>
+                                {netBal > 0.01 ? '+' : ''}{formatCurrency(netBal, currency)}
+                                {' '}{netBal > 0.01 ? '← gets back' : netBal < -0.01 ? '← owes' : '✓ settled'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ── Section 4 (current user only): full pairwise ── */}
+                      {isMe && (
+                        <div>
+                          <h4 style={{ fontSize: '0.78rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px', letterSpacing: '0.5px' }}>Who Owes You / You Owe</h4>
+                          {Object.entries(pairDebts).filter(([, amt]) => Math.abs(amt) > 0.005).length === 0 ? (
+                            <div style={{ fontSize: '0.82rem', color: 'var(--accent-mint)', fontWeight: '600' }}>✓ All settled up!</div>
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                              {Object.entries(pairDebts)
+                                .filter(([, amt]) => Math.abs(amt) > 0.005)
+                                .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+                                .map(([fId, amt]) => {
+                                  const fName = friends.find(f => f.id === fId)?.name || 'Unknown';
+                                  return (
+                                    <div key={fId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px', borderRadius: '10px', background: amt > 0 ? 'rgba(16,185,129,0.07)' : 'rgba(244,63,94,0.07)' }}>
+                                      <span style={{ fontSize: '0.84rem', fontWeight: '700' }}>{fName}</span>
+                                      <span style={{ fontWeight: '800', fontSize: '0.84rem', color: amt > 0 ? 'var(--accent-mint)' : 'var(--accent-coral)' }}>
+                                        {amt > 0 ? `owes you ${formatCurrency(amt, currency)}` : `you owe ${formatCurrency(Math.abs(amt), currency)}`}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                     </div>
-                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                      {netBal > 0.01 ? 'gets back' : netBal < -0.01 ? 'owes group' : 'settled'}
-                    </div>
-                  </div>
-                  <ChevronRight size={16} color="var(--text-muted)" />
-                </div>
+                  );
+                })()}
               </div>
             );
           })}
@@ -399,86 +671,6 @@ export const DashboardView = ({
           </div>
         )}
       </div>
-
-      {/* 5. Spender Details Drilldown Modal */}
-      {selectedSpender && (
-        <div className="modal-overlay" onClick={() => setSelectedSpender(null)}>
-          <div className="bottom-sheet" onClick={(e) => e.stopPropagation()} style={{ maxHeight: '88vh' }}>
-            <div className="sheet-handle" />
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <img src={selectedSpender.avatar} alt={selectedSpender.name} style={{ width: '42px', height: '42px', borderRadius: '50%', border: '2px solid var(--accent-mint)' }} />
-                <div>
-                  <h2 style={{ fontSize: '1.15rem', fontWeight: '800' }}>
-                    {selectedSpender.id === currentUserId ? 'Your Expenses & Lending' : `${selectedSpender.name}'s Details`}
-                  </h2>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    {selectedSpender.email || selectedSpender.phone}
-                  </div>
-                </div>
-              </div>
-              <button onClick={() => setSelectedSpender(null)} className="icon-btn">
-                <X size={18} />
-              </button>
-            </div>
-
-            {(() => {
-              const paidList = expenses.filter(e => e.paidBy === selectedSpender.id);
-              const totalPaidAmt = paidList.reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0);
-              const netBal = overallBalances[selectedSpender.id] || 0;
-
-              return (
-                <div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '14px' }}>
-                    <div style={{ background: 'var(--bg-input)', padding: '12px', borderRadius: '14px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Total Money Paid</div>
-                      <div style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-primary)' }}>
-                        {formatCurrency(totalPaidAmt, currency)}
-                      </div>
-                    </div>
-                    <div style={{ background: 'var(--bg-input)', padding: '12px', borderRadius: '14px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Net Balance</div>
-                      <div style={{ fontSize: '1.1rem', fontWeight: '800', color: netBal >= 0 ? 'var(--accent-mint)' : 'var(--accent-coral)' }}>
-                        {netBal >= 0 ? `+${formatCurrency(netBal, currency)}` : formatCurrency(netBal, currency)}
-                      </div>
-                    </div>
-                  </div>
-
-                  <h3 style={{ fontSize: '0.95rem', fontWeight: '800', marginBottom: '8px' }}>
-                    Expenses Paid by {selectedSpender.id === currentUserId ? 'You' : selectedSpender.name} ({paidList.length})
-                  </h3>
-
-                  {paidList.length === 0 ? (
-                    <div className="card" style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-                      No expenses paid by this member yet.
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '40vh', overflowY: 'auto' }}>
-                      {paidList.map(exp => {
-                        const grpName = groups.find(g => g.id === exp.groupId)?.name || 'Group';
-                        return (
-                          <div key={exp.id} className="card" style={{ padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div>
-                              <div style={{ fontWeight: '700', fontSize: '0.88rem' }}>{exp.title}</div>
-                              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                                in <strong style={{ color: 'var(--text-secondary)' }}>{grpName}</strong> • {formatDate(exp.date)}
-                              </div>
-                            </div>
-                            <div style={{ fontWeight: '800', fontSize: '0.92rem', color: 'var(--accent-mint)' }}>
-                              {formatCurrency(exp.amount, currency)}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

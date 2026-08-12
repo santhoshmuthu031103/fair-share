@@ -18,6 +18,7 @@ import {
   Check,
   Calculator
 } from 'lucide-react';
+import { avatarOnError, getAvatarUrl } from '../../utils/avatarHelper';
 
 const ICON_MAP = { Utensils, ShoppingBag, Home, Zap, Plane, Film, Tag, Receipt };
 
@@ -89,6 +90,14 @@ export const AddExpenseModal = ({
       });
       if (Math.abs(sum - 100) > 0.1) {
         return `Percentages sum (${sum.toFixed(1)}%) must equal 100%.`;
+      }
+    } else if (splitType === 'shares') {
+      let totalShares = 0;
+      currentRecipients.forEach(id => {
+        totalShares += (parseFloat(splits[id]) || 0);
+      });
+      if (totalShares <= 0) {
+        return 'Enter at least one share to split this expense.';
       }
     }
 
@@ -260,7 +269,7 @@ export const AddExpenseModal = ({
                       whiteSpace: 'nowrap'
                     }}
                   >
-                    <img src={m.avatar} alt={m.name} style={{ width: '22px', height: '22px', borderRadius: '50%' }} />
+                    <img src={getAvatarUrl(m)} alt={m.name} style={{ width: '22px', height: '22px', borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }} onError={avatarOnError(m.name)} />
                     <span>{m.id === currentUserId ? 'You' : m.name.split(' ')[0]}</span>
                   </button>
                 );
@@ -339,7 +348,7 @@ export const AddExpenseModal = ({
                     >
                       {isIncluded && <Check size={14} color="#fff" />}
                     </div>
-                    <img src={m.avatar} alt={m.name} style={{ width: '24px', height: '24px', borderRadius: '50%' }} />
+                    <img src={getAvatarUrl(m)} alt={m.name} style={{ width: '24px', height: '24px', borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }} onError={avatarOnError(m.name)} />
                     <span style={{ fontSize: '0.85rem', fontWeight: '600', color: isIncluded ? 'var(--text-primary)' : 'var(--text-muted)' }}>
                       {m.id === currentUserId ? 'You' : m.name}
                     </span>

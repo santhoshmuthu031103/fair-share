@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import confetti from 'canvas-confetti';
 import { X, CheckCircle2, ArrowRight } from 'lucide-react';
+import { avatarOnError, getAvatarUrl } from '../../utils/avatarHelper';
 
 export const SettleUpModal = ({ 
   friends, 
@@ -13,15 +14,40 @@ export const SettleUpModal = ({
 }) => {
   const currentUserId = currentUser?.id || friends[0]?.id;
 
-  const [payerId, setPayerId] = useState(initialData.payerId || currentUserId);
-  const [payeeId, setPayeeId] = useState(
-    initialData.payeeId || (friends.find(f => f.id !== (initialData.payerId || currentUserId))?.id || '')
-  );
+  // Deduplicate friends by ID to prevent "You" appearing twice
+  const uniqueFriends = friends.reduce((acc, f) => {
+    if (!acc.find(x => x.id === f.id)) acc.push(f);
+    return acc;
+  }, []);
+
+  const defaultPayerId = initialData.payerId || currentUserId;
+  const defaultPayeeId = initialData.payeeId || uniqueFriends.find(f => f.id !== defaultPayerId)?.id || '';
+
+  const [payerId, setPayerId] = useState(defaultPayerId);
+  const [payeeId, setPayeeId] = useState(defaultPayeeId);
   const [amount, setAmount] = useState(initialData.amount ? String(initialData.amount) : '');
   const [groupId, setGroupId] = useState(initialData.groupId || (groups[0]?.id || ''));
   const [notes, setNotes] = useState('');
 
-  const getUser = (id) => friends.find(f => f.id === id);
+  const getUser = (id) => uniqueFriends.find(f => f.id === id);
+
+  const handlePayerChange = (newPayerId) => {
+    setPayerId(newPayerId);
+    // If new payer matches current payee, auto-pick a different payee
+    if (newPayerId === payeeId) {
+      const fallback = uniqueFriends.find(f => f.id !== newPayerId);
+      setPayeeId(fallback?.id || '');
+    }
+  };
+
+  const handlePayeeChange = (newPayeeId) => {
+    setPayeeId(newPayeeId);
+    // If new payee matches current payer, auto-pick a different payer
+    if (newPayeeId === payerId) {
+      const fallback = uniqueFriends.find(f => f.id !== newPayeeId);
+      setPayerId(fallback?.id || '');
+    }
+  };
 
   const payer = getUser(payerId);
   const payee = getUser(payeeId);
@@ -84,7 +110,7 @@ export const SettleUpModal = ({
           }}
         >
           <div style={{ textAlign: 'center' }}>
-            <img src={payer?.avatar} alt="Payer" style={{ width: '48px', height: '48px', borderRadius: '50%', border: '2px solid var(--accent-coral)', marginBottom: '4px' }} />
+            <img src={getAvatarUrl(payer)} alt="Payer" style={{ width: '48px', height: '48px', borderRadius: '50%', border: '2px solid var(--accent-coral)', marginBottom: '4px', flexShrink: 0, objectFit: 'cover' }} onError={avatarOnError(payerName)} />
             <div style={{ fontWeight: '700', fontSize: '0.85rem' }}>{payerName}</div>
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>paid</div>
           </div>
@@ -95,7 +121,7 @@ export const SettleUpModal = ({
           </div>
 
           <div style={{ textAlign: 'center' }}>
-            <img src={payee?.avatar} alt="Payee" style={{ width: '48px', height: '48px', borderRadius: '50%', border: '2px solid var(--accent-mint)', marginBottom: '4px' }} />
+            <img src={getAvatarUrl(payee)} alt="Payee" style={{ width: '48px', height: '48px', borderRadius: '50%', border: '2px solid var(--accent-mint)', marginBottom: '4px', flexShrink: 0, objectFit: 'cover' }} onError={avatarOnError(payeeName)} />
             <div style={{ fontWeight: '700', fontSize: '0.85rem' }}>{payeeName}</div>
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>received</div>
           </div>
@@ -108,10 +134,10 @@ export const SettleUpModal = ({
               <label className="form-label">Who Paid?</label>
               <select 
                 value={payerId} 
-                onChange={(e) => setPayerId(e.target.value)} 
+                onChange={(e) => handlePayerChange(e.target.value)} 
                 className="form-select"
               >
-                {friends.map(f => (
+                {uniqueFriends.filter(f => f.id !== payeeId).map(f => (
                   <option key={f.id} value={f.id}>{f.id === currentUserId ? 'You' : f.name}</option>
                 ))}
               </select>
@@ -120,10 +146,10 @@ export const SettleUpModal = ({
               <label className="form-label">Who Received?</label>
               <select 
                 value={payeeId} 
-                onChange={(e) => setPayeeId(e.target.value)} 
+                onChange={(e) => handlePayeeChange(e.target.value)} 
                 className="form-select"
               >
-                {friends.filter(f => f.id !== payerId).map(f => (
+                {uniqueFriends.filter(f => f.id !== payerId).map(f => (
                   <option key={f.id} value={f.id}>{f.id === currentUserId ? 'You' : f.name}</option>
                 ))}
               </select>

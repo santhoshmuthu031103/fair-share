@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, UserPlus, Share2, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { lookupCloudUser } from '../../utils/firebaseSync';
+import { avatarOnError, getFallbackAvatarUrl } from '../../utils/avatarHelper';
 
 const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 const validateMobile = (mobile) => /^[+]?[\d\s\-().]{7,15}$/.test(mobile.trim());
@@ -69,7 +70,7 @@ export const AddFriendModal = ({ onClose, onAddFriend }) => {
         name: foundUser.name || name.trim(),
         email: foundUser.email || email.trim(),
         phone: foundUser.phone || phone.trim(),
-        avatar: foundUser.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(foundUser.name || name)}`,
+        avatar: foundUser.avatar || getFallbackAvatarUrl(foundUser.name || name),
         color: foundUser.color || '#9C3925',
         isVerified: true,
       });
@@ -81,7 +82,7 @@ export const AddFriendModal = ({ onClose, onAddFriend }) => {
         name: name.trim(),
         email: email.trim(),
         phone: phone.trim(),
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(seed)}`,
+        avatar: getFallbackAvatarUrl(seed),
         color: '#9C3925',
         isVerified: false,
       });
@@ -166,16 +167,17 @@ export const AddFriendModal = ({ onClose, onAddFriend }) => {
           {foundUser && !isSearching && (
             <div style={{ background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.4)', borderRadius: '14px', padding: '12px 14px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '12px' }}>
               <img 
-                src={foundUser.avatar} 
+                src={foundUser.avatar || getFallbackAvatarUrl(foundUser.name)} 
                 alt={foundUser.name} 
-                style={{ width: '42px', height: '42px', borderRadius: '50%', border: '2px solid #10b981' }} 
+                style={{ width: '42px', height: '42px', borderRadius: '50%', border: '2px solid #10b981', flexShrink: 0, objectFit: 'cover' }} 
+                onError={avatarOnError(foundUser.name)}
               />
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '800', fontSize: '0.92rem', color: '#047857' }}>
-                  <CheckCircle2 size={16} /> Verified Registered User
+                  <CheckCircle2 size={16} style={{ flexShrink: 0 }} /> Verified Registered User
                 </div>
-                <div style={{ fontWeight: '700', fontSize: '0.85rem' }}>{foundUser.name}</div>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{foundUser.phone || foundUser.email}</div>
+                <div style={{ fontWeight: '700', fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{foundUser.name}</div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{foundUser.phone || foundUser.email}</div>
               </div>
             </div>
           )}

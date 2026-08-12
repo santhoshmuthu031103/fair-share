@@ -1,6 +1,6 @@
 import React from 'react';
 import { GroupCard } from './GroupCard';
-import { calculateNetBalances } from '../../utils/debtCalculator';
+import { buildLedger } from '../../utils/debtCalculator';
 import { Plus, Users, LogIn } from 'lucide-react';
 
 export const GroupList = ({ 
@@ -15,6 +15,7 @@ export const GroupList = ({
   onJoinGroup 
 }) => {
   const currentUserId = currentUser?.id || friends[0]?.id;
+  const ledger = buildLedger(expenses, settlements, currentUserId, friends, groups);
 
   return (
     <div style={{ padding: '16px 0' }}>
@@ -68,10 +69,7 @@ export const GroupList = ({
           </div>
         ) : (
           groups.map(group => {
-            const groupExps = expenses.filter(e => e.groupId === group.id);
-            const groupSets = settlements.filter(s => s.groupId === group.id);
-            const groupMembers = (group.members || []).map(mId => friends.find(f => f.id === mId)).filter(Boolean);
-            const netBalances = calculateNetBalances(groupExps, groupSets, groupMembers.length > 0 ? groupMembers : friends);
+            const netBalances = ledger.groups[group.id]?.netBalances || {};
             const userBalance = netBalances[currentUserId] || 0;
 
             return (
