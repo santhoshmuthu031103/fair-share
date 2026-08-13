@@ -27,7 +27,8 @@ export const DashboardView = ({
   currentUser,
   onSelectGroup,
   onCreateGroup,
-  onOpenAddExpense
+  onOpenAddExpense,
+  onOpenRoulette
 }) => {
   const currentUserId = currentUser?.id || friends[0]?.id;
   const [expandedMemberId, setExpandedMemberId] = useState(null);
@@ -153,6 +154,24 @@ export const DashboardView = ({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Debt Roulette Action */}
+      <div style={{ padding: '0 16px', marginBottom: '20px' }}>
+        <button 
+          onClick={onOpenRoulette} 
+          className="btn-primary" 
+          style={{ 
+            width: '100%', 
+            background: 'linear-gradient(135deg, #8b5cf6 0%, #c084fc 100%)', 
+            border: 'none', 
+            height: '54px', 
+            fontSize: '1rem', 
+            fontWeight: '800' 
+          }}
+        >
+          🎲 Spin the Wheel (Who Pays?)
+        </button>
       </div>
 
       {/* 2. 📊 Daily Spending Tracker & Interactive Chart */}

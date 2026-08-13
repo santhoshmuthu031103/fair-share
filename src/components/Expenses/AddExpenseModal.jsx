@@ -31,6 +31,7 @@ export const AddExpenseModal = ({
   activeGroupId, 
   currency, 
   currentUser,
+  initialPayerId,
   onClose, 
   onAddExpense 
 }) => {
@@ -39,7 +40,7 @@ export const AddExpenseModal = ({
   const [amount, setAmount] = useState('');
   const [groupId, setGroupId] = useState(activeGroupId || (groups[0]?.id || ''));
   const [category, setCategory] = useState('food');
-  const [paidBy, setPaidBy] = useState(currentUserId);
+  const [paidBy, setPaidBy] = useState(initialPayerId || currentUserId);
   const [splitType, setSplitType] = useState('equal'); // equal | exact | percentage | shares | itemized
   const [splits, setSplits] = useState({});
   const [recipientIds, setRecipientIds] = useState([]);

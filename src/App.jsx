@@ -11,6 +11,7 @@ import { JoinGroupModal } from './components/Groups/JoinGroupModal';
 import { FriendsList } from './components/Friends/FriendsList';
 import { AddFriendModal } from './components/Friends/AddFriendModal';
 import { AddExpenseModal } from './components/Expenses/AddExpenseModal';
+import { DebtRouletteModal } from './components/Expenses/DebtRouletteModal';
 import { SettleUpModal } from './components/Debts/SettleUpModal';
 import { ActivityFeed } from './components/Activity/ActivityFeed';
 import { AnalyticsView } from './components/Analytics/AnalyticsView';
@@ -33,6 +34,7 @@ export function App() {
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [modalType, setModalType] = useState(null);
+  const [rouletteWinnerId, setRouletteWinnerId] = useState(null);
   const [settleUpData, setSettleUpData] = useState({});
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     return localStorage.getItem('splitwise_is_logged_in') === 'true';
@@ -621,7 +623,7 @@ export function App() {
           />
         ) : (
           <>
-            {activeTab === 'dashboard' && (
+            {activeTab === 'dashboard' && !selectedGroup && (
               <DashboardView
                 groups={groups}
                 expenses={expenses}
@@ -629,9 +631,13 @@ export function App() {
                 friends={friends}
                 currency={activeCurrency}
                 currentUser={currentUser}
-                onSelectGroup={handleSelectGroup}
+                onSelectGroup={setSelectedGroup}
                 onCreateGroup={() => setModalType('create_group')}
-                onOpenAddExpense={() => setModalType('add_expense')}
+                onOpenAddExpense={() => {
+                  setRouletteWinnerId(null);
+                  setModalType('add_expense');
+                }}
+                onOpenRoulette={() => setModalType('roulette')}
               />
             )}
 
@@ -683,7 +689,10 @@ export function App() {
           setSelectedGroup(null);
           setActiveTab(tab);
         }}
-        onOpenAddExpense={() => setModalType('add_expense')}
+        onOpenAddExpense={() => {
+          setRouletteWinnerId(null);
+          setModalType('add_expense');
+        }}
       />
 
       {/* Modal Overlays */}
@@ -704,8 +713,21 @@ export function App() {
           activeGroupId={selectedGroup?.id}
           currency={activeCurrency}
           currentUser={currentUser}
+          initialPayerId={rouletteWinnerId}
           onClose={() => setModalType(null)}
           onAddExpense={handleAddExpense}
+        />
+      )}
+
+      {modalType === 'roulette' && (
+        <DebtRouletteModal
+          friends={friends}
+          currentUser={currentUser}
+          onClose={() => setModalType(null)}
+          onSelectPayer={(winnerId) => {
+            setRouletteWinnerId(winnerId);
+            setModalType('add_expense');
+          }}
         />
       )}
 
