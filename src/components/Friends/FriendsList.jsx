@@ -1,7 +1,7 @@
 import React from 'react';
 import { buildLedger } from '../../utils/debtCalculator';
 import { formatCurrency } from '../../utils/formatters';
-import { UserPlus, DollarSign, Trash2, Share2, Phone, Mail } from 'lucide-react';
+import { UserPlus, DollarSign, Trash2, Share2, Phone, Mail, Flame } from 'lucide-react';
 import { avatarOnError, getAvatarUrl } from '../../utils/avatarHelper';
 
 export const FriendsList = ({ 
@@ -19,6 +19,36 @@ export const FriendsList = ({
   const ledger = buildLedger(expenses, settlements, currentUserId, friends, groups);
   const pairwise = ledger.global.pairwiseDebts;
   const friendsExceptYou = friends.filter(f => f.id !== currentUserId);
+
+  const ROASTS = [
+    "I am never going to financially recover from this. Please pay me back {amount}, {name}.",
+    "Hey {name}, my wallet is looking at me funny. Could you send over that {amount}?",
+    "Roses are red, violets are blue, you owe me {amount}, and this rhyme is true.",
+    "Friendly reminder: {amount} is currently missing from my bank account, {name}. Be a hero.",
+    "I love you, {name}, but I love my {amount} slightly more right now. Pls pay up!",
+    "Breaking news: {name} found guilty of owing {amount}. Settle up to drop all charges."
+  ];
+
+  const handleRoast = (friend, amountStr) => {
+    const randomRoast = ROASTS[Math.floor(Math.random() * ROASTS.length)];
+    const message = randomRoast.replace('{name}', friend.name).replace('{amount}', amountStr);
+    
+    if (friend.email) {
+      const subject = encodeURIComponent("You owe me money! 💸");
+      const body = encodeURIComponent(message + "\n\nSent via FairShare.");
+      window.location.href = `mailto:${friend.email}?subject=${subject}&body=${body}`;
+    } else if (navigator.share) {
+      navigator.share({
+        title: 'Settle up time! 💸',
+        text: message,
+      }).catch(() => {});
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(message);
+      alert('🔥 Roast copied to clipboard! Paste it to your friend.');
+    } else {
+      alert(message);
+    }
+  };
 
   const handleShareInvite = () => {
     const inviteText = [
@@ -119,18 +149,30 @@ export const FriendsList = ({
                 </div>
 
                 {Math.abs(netBal) >= 0.01 && (
-                  <button
-                    onClick={() => onOpenSettleUp({
-                      payerId: netBal < 0 ? currentUserId : friend.id,
-                      payeeId: netBal < 0 ? friend.id : currentUserId,
-                      amount: Math.abs(netBal)
-                    })}
-                    className="icon-btn"
-                    title="Settle Up"
-                    style={{ background: 'var(--accent-mint-glow)', color: 'var(--accent-mint)', border: 'none' }}
-                  >
-                    <DollarSign size={16} />
-                  </button>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    {netBal > 0 && (
+                      <button
+                        onClick={() => handleRoast(friend, formatCurrency(netBal, currency))}
+                        className="icon-btn"
+                        title="Roast & Remind"
+                        style={{ background: 'rgba(249, 115, 22, 0.15)', color: '#f97316', border: 'none' }}
+                      >
+                        <Flame size={16} />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => onOpenSettleUp({
+                        payerId: netBal < 0 ? currentUserId : friend.id,
+                        payeeId: netBal < 0 ? friend.id : currentUserId,
+                        amount: Math.abs(netBal)
+                      })}
+                      className="icon-btn"
+                      title="Settle Up"
+                      style={{ background: 'var(--accent-mint-glow)', color: 'var(--accent-mint)', border: 'none' }}
+                    >
+                      <DollarSign size={16} />
+                    </button>
+                  </div>
                 )}
 
                 <button
