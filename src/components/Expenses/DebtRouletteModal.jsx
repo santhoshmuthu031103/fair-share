@@ -1,10 +1,41 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Dices, ArrowRight, Users, Type } from 'lucide-react';
+import { X, Dices, ArrowRight, Users, Sparkles, Pizza, Banknote, Broom, Film } from 'lucide-react';
 import { getAvatarUrl, avatarOnError } from '../../utils/avatarHelper';
 
+const PRESETS = [
+  {
+    id: 'food',
+    icon: Pizza,
+    title: 'What to Eat? 🍔',
+    color: '#f97316',
+    options: ['Pizza 🍕', 'Burgers 🍔', 'Sushi 🍣', 'Tacos 🌮', 'Thai Food 🍜', 'Indian Curry 🍛', 'Fast Food 🍟', 'Salad 🥗']
+  },
+  {
+    id: 'payment',
+    icon: Banknote,
+    title: 'Payment Rules 💸',
+    color: '#10b981',
+    options: ['Pay Now!', 'Pay Next Time', 'Split 50/50', 'Loser Pays Tip', 'Winner Buys Drinks', 'Rock, Paper, Scissors!']
+  },
+  {
+    id: 'chores',
+    icon: Broom,
+    title: 'Chores 🧹',
+    color: '#3b82f6',
+    options: ['Do the Dishes 🍽️', 'Take out Trash 🗑️', 'Vacuum Floor 🧹', 'Clean Bathroom 🧽', 'Cook Dinner 👨‍🍳']
+  },
+  {
+    id: 'activities',
+    icon: Film,
+    title: 'Activities 🎬',
+    color: '#ec4899',
+    options: ['Movie Night 🍿', 'Board Games 🎲', 'Hit the Bars 🍻', 'Video Games 🎮', 'Just Sleep 😴']
+  }
+];
+
 export const DebtRouletteModal = ({ onClose, friends, currentUser, onSelectPayer }) => {
-  const [mode, setMode] = useState('friends'); // 'friends' | 'custom'
-  const [customText, setCustomText] = useState('');
+  const [mode, setMode] = useState('friends'); // 'friends' | 'presets'
+  const [presetOptions, setPresetOptions] = useState([]);
   const [isSpinning, setIsSpinning] = useState(false);
   const [winner, setWinner] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -18,15 +49,15 @@ export const DebtRouletteModal = ({ onClose, friends, currentUser, onSelectPayer
       }
       return list.filter(Boolean);
     } else {
-      // Split by comma or newline and filter out empty strings
-      const opts = customText.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
-      return opts.map((text, idx) => ({ id: `custom_${idx}`, name: text, isCustom: true }));
+      return presetOptions.map((text, idx) => ({ id: `custom_${idx}`, name: text, isCustom: true }));
     }
-  }, [mode, friends, currentUser, customText]);
+  }, [mode, friends, currentUser, presetOptions]);
 
-  const spinRoulette = () => {
-    if (participants.length < 2) {
-      alert(`You need at least 2 options to spin! (${participants.length} provided)`);
+  const spinRoulette = (customParticipants = null) => {
+    const optionsToSpin = customParticipants || participants;
+    
+    if (optionsToSpin.length < 2) {
+      alert(`You need at least 2 options to spin!`);
       return;
     }
     
@@ -42,13 +73,13 @@ export const DebtRouletteModal = ({ onClose, friends, currentUser, onSelectPayer
       currentTick++;
       
       // Randomize index during spin
-      setCurrentIndex(Math.floor(Math.random() * participants.length));
+      setCurrentIndex(Math.floor(Math.random() * optionsToSpin.length));
       
       if (currentTick >= totalTicks) {
         clearInterval(intervalId);
         setIsSpinning(false);
         // Final winner
-        const finalWinner = participants[Math.floor(Math.random() * participants.length)];
+        const finalWinner = optionsToSpin[Math.floor(Math.random() * optionsToSpin.length)];
         setWinner(finalWinner);
       }
     }, intervalTime);
@@ -60,6 +91,12 @@ export const DebtRouletteModal = ({ onClose, friends, currentUser, onSelectPayer
     } else {
       onClose(); // If it's a custom decision, just close
     }
+  };
+
+  const handleSelectPreset = (preset) => {
+    setPresetOptions(preset.options);
+    const mappedParticipants = preset.options.map((text, idx) => ({ id: `custom_${idx}`, name: text, isCustom: true }));
+    spinRoulette(mappedParticipants);
   };
 
   // Helper to render an avatar or a colorful letter block for custom options
@@ -138,88 +175,105 @@ export const DebtRouletteModal = ({ onClose, friends, currentUser, onSelectPayer
               <Users size={16} /> Who Pays?
             </button>
             <button 
-              onClick={() => setMode('custom')}
+              onClick={() => {
+                setMode('presets');
+                setPresetOptions([]); // Reset preset options when switching tabs
+              }}
               style={{
                 flex: 1, padding: '8px', borderRadius: '8px', border: 'none', 
-                background: mode === 'custom' ? '#8b5cf6' : 'transparent',
-                color: mode === 'custom' ? '#fff' : 'var(--text-secondary)',
+                background: mode === 'presets' ? '#8b5cf6' : 'transparent',
+                color: mode === 'presets' ? '#fff' : 'var(--text-secondary)',
                 fontWeight: '600', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
               }}
             >
-              <Type size={16} /> Custom Options
+              <Sparkles size={16} /> Fun Presets
             </button>
           </div>
         )}
 
-        {/* Custom Input Field */}
-        {mode === 'custom' && !isSpinning && !winner && (
-          <div style={{ marginBottom: '16px', textAlign: 'left' }}>
-            <label style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px', display: 'block' }}>
-              Enter options (separated by commas)
-            </label>
-            <textarea 
-              value={customText}
-              onChange={(e) => setCustomText(e.target.value)}
-              placeholder="e.g. Pizza, Burgers, Tacos, Salad"
-              style={{
-                width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--border-color)',
-                background: 'var(--bg-input)', color: 'var(--text-primary)', minHeight: '60px',
-                resize: 'vertical', fontSize: '0.9rem'
-              }}
-            />
+        {/* Fun Presets Grid */}
+        {mode === 'presets' && !isSpinning && !winner && presetOptions.length === 0 && (
+          <div style={{ marginBottom: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              {PRESETS.map((preset) => {
+                const Icon = preset.icon;
+                return (
+                  <button 
+                    key={preset.id}
+                    onClick={() => handleSelectPreset(preset)}
+                    style={{
+                      background: 'var(--bg-input)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '12px',
+                      padding: '16px 12px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '8px',
+                      color: 'var(--text-primary)'
+                    }}
+                  >
+                    <div style={{ background: `${preset.color}20`, color: preset.color, padding: '10px', borderRadius: '50%' }}>
+                      <Icon size={24} />
+                    </div>
+                    <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>{preset.title}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
         {/* The Spinner UI */}
-        <div style={{ 
-          height: '140px', 
-          background: 'var(--bg-input)', 
-          borderRadius: '16px', 
-          display: 'flex', 
-          flexDirection: 'column', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          marginBottom: '24px',
-          border: winner ? '2px solid #8b5cf6' : '2px solid transparent',
-          transition: 'all 0.3s ease',
-          boxShadow: winner ? '0 0 20px rgba(139, 92, 246, 0.3)' : 'none',
-          overflow: 'hidden',
-          padding: '10px'
-        }}>
-          {participants.length === 0 && mode === 'custom' ? (
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Type something above to start.</p>
-          ) : participants.length < 2 ? (
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Need at least 2 options.</p>
-          ) : (
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center',
-              transform: isSpinning ? 'scale(1.05)' : 'scale(1)',
-              transition: 'transform 0.1s ease',
-              opacity: (isSpinning || winner) ? 1 : 0.5
-            }}>
-              {winner ? (
-                <>
-                  {renderAvatar(winner, 64, true)}
-                  <div style={{ fontSize: '1.2rem', fontWeight: '800', color: '#8b5cf6' }}>
-                    {!winner.isCustom && winner.id === currentUser?.id ? 'You' : winner.name}
-                  </div>
-                  <div style={{ fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase' }}>
-                    {winner.isCustom ? 'The Decision is Made!' : 'Pays the Bill!'}
-                  </div>
-                </>
-              ) : (
-                <>
-                  {renderAvatar(participants[currentIndex], 64, false)}
-                  <div style={{ fontSize: '1.2rem', fontWeight: '800', filter: isSpinning ? 'blur(1px)' : 'none' }}>
-                    {!participants[currentIndex].isCustom && participants[currentIndex].id === currentUser?.id ? 'You' : participants[currentIndex].name}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-        </div>
+        {(mode === 'friends' || isSpinning || winner || presetOptions.length > 0) && (
+          <div style={{ 
+            height: '140px', 
+            background: 'var(--bg-input)', 
+            borderRadius: '16px', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            marginBottom: '24px',
+            border: winner ? '2px solid #8b5cf6' : '2px solid transparent',
+            transition: 'all 0.3s ease',
+            boxShadow: winner ? '0 0 20px rgba(139, 92, 246, 0.3)' : 'none',
+            overflow: 'hidden',
+            padding: '10px'
+          }}>
+            {participants.length < 2 ? (
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Need at least 2 options.</p>
+            ) : (
+              <div style={{ 
+                display: 'flex', 
+                flexDirection: 'column', 
+                alignItems: 'center',
+                transform: isSpinning ? 'scale(1.05)' : 'scale(1)',
+                transition: 'transform 0.1s ease',
+                opacity: (isSpinning || winner) ? 1 : 0.5
+              }}>
+                {winner ? (
+                  <>
+                    {renderAvatar(winner, 64, true)}
+                    <div style={{ fontSize: '1.2rem', fontWeight: '800', color: '#8b5cf6' }}>
+                      {!winner.isCustom && winner.id === currentUser?.id ? 'You' : winner.name}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase' }}>
+                      {winner.isCustom ? 'The Decision is Made!' : 'Pays the Bill!'}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {renderAvatar(participants[currentIndex], 64, false)}
+                    <div style={{ fontSize: '1.2rem', fontWeight: '800', filter: isSpinning ? 'blur(1px)' : 'none' }}>
+                      {!participants[currentIndex].isCustom && participants[currentIndex].id === currentUser?.id ? 'You' : participants[currentIndex].name}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Action Buttons */}
         {winner ? (
@@ -242,16 +296,16 @@ export const DebtRouletteModal = ({ onClose, friends, currentUser, onSelectPayer
               </button>
             )}
             <button 
-              onClick={spinRoulette} 
+              onClick={() => spinRoulette()} 
               className="btn-secondary" 
               style={{ fontSize: '0.9rem', border: 'none', background: 'transparent' }}
             >
               Spin Again (Best 2 out of 3?)
             </button>
           </div>
-        ) : (
+        ) : mode === 'friends' && (
           <button 
-            onClick={spinRoulette} 
+            onClick={() => spinRoulette()} 
             disabled={isSpinning || participants.length < 2}
             className="btn-primary" 
             style={{ 
