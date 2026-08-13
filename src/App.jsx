@@ -637,7 +637,6 @@ export function App() {
                   setRouletteWinnerId(null);
                   setModalType('add_expense');
                 }}
-                onOpenRoulette={() => setModalType('roulette')}
               />
             )}
 
@@ -677,6 +676,7 @@ export function App() {
                 friends={friends}
                 currency={activeCurrency}
                 currentUser={currentUser}
+                onOpenRoulette={() => setModalType('roulette')}
               />
             )}
           </>

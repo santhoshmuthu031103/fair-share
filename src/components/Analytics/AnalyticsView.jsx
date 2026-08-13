@@ -4,7 +4,7 @@ import { TrendingUp, Award, Crown, Trophy, Star, Scissors, PartyPopper, Landmark
 import { avatarOnError, getAvatarUrl } from '../../utils/avatarHelper';
 import { buildLedger } from '../../utils/debtCalculator';
 
-export const AnalyticsView = ({ expenses, groups, friends, settlements, currency, currentUser }) => {
+export const AnalyticsView = ({ expenses, groups, friends, settlements, currency, currentUser, onOpenRoulette }) => {
   const [activeSection, setActiveSection] = useState('overview');
   const totalSpend = expenses.reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0);
   const currentUserId = currentUser?.id || friends[0]?.id;
@@ -213,6 +213,24 @@ export const AnalyticsView = ({ expenses, groups, friends, settlements, currency
                 {expenses.length > 0 ? formatCurrency(totalSpend / expenses.length, currency) : `${currency}0`}
               </div>
             </div>
+          </div>
+
+          {/* Debt Roulette Action */}
+          <div style={{ marginBottom: '14px' }}>
+            <button 
+              onClick={onOpenRoulette} 
+              className="btn-primary" 
+              style={{ 
+                width: '100%', 
+                background: 'linear-gradient(135deg, #8b5cf6 0%, #c084fc 100%)', 
+                border: 'none', 
+                height: '54px', 
+                fontSize: '1rem', 
+                fontWeight: '800' 
+              }}
+            >
+              🎲 Universal Decision Wheel
+            </button>
           </div>
 
           {/* Donut Chart + Category Legend */}
