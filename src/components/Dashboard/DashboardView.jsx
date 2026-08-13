@@ -170,7 +170,7 @@ export const DashboardView = ({
             fontWeight: '800' 
           }}
         >
-          🎲 Spin the Wheel (Who Pays?)
+          🎲 Universal Decision Wheel
         </button>
       </div>
 
