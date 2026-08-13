@@ -57,7 +57,7 @@ export const AnalyticsView = ({ expenses, groups, friends, settlements, currency
   const maxGroupTotal = Math.max(...sortedGroups.map(g => g.total), 1);
 
   // ── Fun Badges ──
-  const ledger = buildLedger(expenses, settlements, friends, groups, currentUserId);
+  const ledger = buildLedger(expenses, settlements, currentUserId, friends, groups);
   const badges = [];
 
   // The Bank — person who is owed the most
