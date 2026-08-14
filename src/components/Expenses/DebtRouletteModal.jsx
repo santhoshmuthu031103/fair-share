@@ -18,6 +18,21 @@ const FATES = [
   { id: 'f13', name: 'Plan the weekend activity 🎢' },
   { id: 'f14', name: 'Plan the next group trip ✈️' },
   { id: 'f15', name: 'Free Pass! (Do nothing) 🎉' },
+  { id: 'f16', name: 'Cook dinner tonight 🍳' },
+  { id: 'f17', name: 'Pay for the Uber 🚗' },
+  { id: 'f18', name: 'Give a 5-minute foot massage 🦶' },
+  { id: 'f19', name: 'Host the next house party 🏠' },
+  { id: 'f20', name: 'Sing a song out loud 🎤' },
+  { id: 'f21', name: 'Walk the dog 🐕' },
+  { id: 'f22', name: 'Buy the next round of shots 🥃' },
+  { id: 'f23', name: 'Tell an embarrassing story 🙈' },
+  { id: 'f24', name: 'Pay for everyone\'s dessert 🍦' },
+  { id: 'f25', name: 'Be the designated driver 🚘' },
+  { id: 'f26', name: 'Do 20 pushups right now 💪' },
+  { id: 'f27', name: 'Give up your seat 🪑' },
+  { id: 'f28', name: 'Say something nice about everyone 💖' },
+  { id: 'f29', name: 'Pay for the popcorn 🍿' },
+  { id: 'f30', name: 'Mow the lawn 🌱' },
 ];
 
 export const DebtRouletteModal = ({ onClose, friends, currentUser, onSelectPayer }) => {
