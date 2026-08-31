@@ -328,29 +328,6 @@ export const GroupDetail = ({
                         Settle
                       </button>
                     )}
-                    {isUserPayee && (
-                      <button
-                        onClick={() => onOpenSettleUp({
-                          groupId: group.id,
-                          payerId: tx.from,
-                          payeeId: tx.to,
-                          amount: tx.amount
-                        })}
-                        className="btn-secondary"
-                        style={{
-                          height: '28px',
-                          padding: '0 10px',
-                          fontSize: '0.72rem',
-                          borderRadius: '14px',
-                          color: 'var(--accent-mint)',
-                          borderColor: 'rgba(16, 185, 129, 0.3)',
-                          background: 'rgba(16, 185, 129, 0.08)'
-                        }}
-                        title={`Record payment received from ${getUserName(tx.from)}`}
-                      >
-                        Received
-                      </button>
-                    )}
                   </div>
                 </div>
               );

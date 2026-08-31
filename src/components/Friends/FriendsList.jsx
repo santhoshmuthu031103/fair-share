@@ -168,18 +168,20 @@ export const FriendsList = ({
                         <Flame size={16} />
                       </button>
                     )}
-                    <button
-                      onClick={() => onOpenSettleUp({
-                        payerId: netBal < 0 ? currentUserId : friend.id,
-                        payeeId: netBal < 0 ? friend.id : currentUserId,
-                        amount: Math.abs(netBal)
-                      })}
-                      className="icon-btn"
-                      title="Settle Up"
-                      style={{ background: 'var(--accent-mint-glow)', color: 'var(--accent-mint)', border: 'none' }}
-                    >
-                      <DollarSign size={16} />
-                    </button>
+                    {netBal < 0 && (
+                      <button
+                        onClick={() => onOpenSettleUp({
+                          payerId: currentUserId,
+                          payeeId: friend.id,
+                          amount: Math.abs(netBal)
+                        })}
+                        className="icon-btn"
+                        title="Settle Up"
+                        style={{ background: 'var(--accent-mint-glow)', color: 'var(--accent-mint)', border: 'none' }}
+                      >
+                        <DollarSign size={16} />
+                      </button>
+                    )}
                   </div>
                 )}
 
