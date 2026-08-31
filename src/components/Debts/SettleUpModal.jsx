@@ -174,10 +174,11 @@ export const SettleUpModal = ({
           </div>
 
           {/* Group */}
-          {groups.length > 1 && (
+          {groups.length > 0 && (
             <div className="form-group">
               <label className="form-label">Group</label>
               <select value={groupId} onChange={(e) => setGroupId(e.target.value)} className="form-select">
+                <option value="">No Group (Direct Settlement)</option>
                 {groups.map(g => (
                   <option key={g.id} value={g.id}>{g.name}</option>
                 ))}

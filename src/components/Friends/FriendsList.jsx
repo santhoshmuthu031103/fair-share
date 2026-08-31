@@ -3,6 +3,8 @@ import { buildLedger } from '../../utils/debtCalculator';
 import { formatCurrency } from '../../utils/formatters';
 import { UserPlus, DollarSign, Trash2, Share2, Phone, Mail, Flame } from 'lucide-react';
 import { avatarOnError, getAvatarUrl } from '../../utils/avatarHelper';
+import ROASTS from '../../data/roasts';
+import { openEmailComposer } from '../../utils/emailHelper';
 
 export const FriendsList = ({ 
   friends, 
@@ -20,33 +22,39 @@ export const FriendsList = ({
   const pairwise = ledger.global.pairwiseDebts;
   const friendsExceptYou = friends.filter(f => f.id !== currentUserId);
 
-  const ROASTS = [
-    "I am never going to financially recover from this. Please pay me back {amount}, {name}.",
-    "Hey {name}, my wallet is looking at me funny. Could you send over that {amount}?",
-    "Roses are red, violets are blue, you owe me {amount}, and this rhyme is true.",
-    "Friendly reminder: {amount} is currently missing from my bank account, {name}. Be a hero.",
-    "I love you, {name}, but I love my {amount} slightly more right now. Pls pay up!",
-    "Breaking news: {name} found guilty of owing {amount}. Settle up to drop all charges."
-  ];
-
-  const handleRoast = (friend, amountStr) => {
+  const handleRoast = async (friend, amountStr) => {
     const randomRoast = ROASTS[Math.floor(Math.random() * ROASTS.length)];
     const message = randomRoast.replace('{name}', friend.name).replace('{amount}', amountStr);
     
+    const senderName = currentUser?.name || 'Your Friend';
+    const subject = `💸 Pay up, ${friend.name}! You owe ${amountStr}`;
+    const body = `${message}\n\n— Sent with love (and impatience) by ${senderName} via FairShare 🔥`;
+
     if (friend.email) {
-      const subject = encodeURIComponent("You owe me money! 💸");
-      const body = encodeURIComponent(message + "\n\nSent via FairShare.");
-      window.location.href = `mailto:${friend.email}?subject=${subject}&body=${body}`;
-    } else if (navigator.share) {
-      navigator.share({
-        title: 'Settle up time! 💸',
-        text: message,
-      }).catch(() => {});
-    } else if (navigator.clipboard) {
-      navigator.clipboard.writeText(message);
-      alert('🔥 Roast copied to clipboard! Paste it to your friend.');
+      await openEmailComposer({
+        to: friend.email,
+        subject,
+        body
+      });
     } else {
-      alert(message);
+      // If friend doesn't have an email saved, prompt or open composer with prefilled body
+      if (confirm(`No email address saved for ${friend.name}. Open Gmail to send with prefilled text?`)) {
+        await openEmailComposer({
+          to: '',
+          subject,
+          body
+        });
+      } else if (navigator.share) {
+        navigator.share({
+          title: subject,
+          text: body,
+        }).catch(() => {});
+      } else if (navigator.clipboard) {
+        navigator.clipboard.writeText(body);
+        alert('🔥 Roast copied to clipboard! Paste it to your friend.');
+      } else {
+        alert(body);
+      }
     }
   };
 

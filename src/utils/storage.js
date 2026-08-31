@@ -1,4 +1,18 @@
-const STORAGE_KEY = 'splitwise_app_state_v2';
+/**
+ * APP_VERSION gate: bump this string any time you want every device
+ * to start completely fresh (wipes ALL localStorage keys).
+ */
+const APP_VERSION = 'v5';
+const APP_VERSION_KEY = 'splitwise_app_version';
+
+// ── Full wipe if version mismatch (runs before anything else) ──
+const storedVersion = localStorage.getItem(APP_VERSION_KEY);
+if (storedVersion !== APP_VERSION) {
+  localStorage.clear();
+  localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
+}
+
+const STORAGE_KEY = 'splitwise_app_state';
 const USER_PROFILE_KEY = 'splitwise_user_profile';
 const USER_ID_KEY = 'splitwise_my_user_id';
 
@@ -90,3 +104,4 @@ export const saveStateToStorage = (state) => {
     console.error('Failed to save state to localStorage', e);
   }
 };
+

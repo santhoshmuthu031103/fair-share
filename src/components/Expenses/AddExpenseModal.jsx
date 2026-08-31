@@ -297,6 +297,7 @@ export const AddExpenseModal = ({
               }}
               className="form-select"
             >
+              <option value="">No Group (Direct Expense)</option>
               {groups.map(g => (
                 <option key={g.id} value={g.id}>{g.name}</option>
               ))}

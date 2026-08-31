@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "594086142199",
+    "firebase_url": "https://split-app-60045-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "split-app-60045",
+    "storage_bucket": "split-app-60045.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:594086142199:android:057595153aacc87dd4f3f2",
+        "android_client_info": {
+          "package_name": "com.fairshare.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyARfGZizB8q5Pf0SAvHQ3XrMCmYIlYEPAw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

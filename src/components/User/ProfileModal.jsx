@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, User, Phone, Mail, LogOut, Trash2, Check, Sparkles, AlertTriangle, Upload, Shuffle, Smile } from 'lucide-react';
-import { avatarOnError, getAvatarUrl, getFallbackAvatarUrl } from '../../utils/avatarHelper';
+import { avatarOnError, getAvatarUrl, getFallbackAvatarUrl, compressImage } from '../../utils/avatarHelper';
 
 export const AVATAR_CHARACTERS = [
   {
@@ -80,16 +80,15 @@ export const ProfileModal = ({ currentUser, onClose, onUpdateProfile, onLogout, 
     setAvatar(getFallbackAvatarUrl(randomSeed));
   };
 
-  const handlePhotoUpload = (e) => {
+  const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          setAvatar(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressed = await compressImage(file);
+        setAvatar(compressed);
+      } catch (err) {
+        console.warn('Image compression failed:', err);
+      }
     }
   };
 

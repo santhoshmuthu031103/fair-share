@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { getDatabase, ref, onValue, set, get, remove } from 'firebase/database';
+import { getDatabase, ref, onValue, set, get, remove, push } from 'firebase/database';
 import { getAuth } from 'firebase/auth';
 
 // Real Firebase project config
@@ -114,6 +114,47 @@ export const fetchCloudUserProfile = async (uid) => {
 };
 
 /**
+ * Subscribe to realtime profile updates for a friend (by id, phone, or email).
+ * Returns an unsubscribe function.
+ */
+export const listenForUserProfile = (user, onProfileUpdate) => {
+  if (!db || !user) return () => {};
+  const unsubs = [];
+
+  const handleSnapshot = (snapshot) => {
+    if (snapshot.exists()) {
+      const val = snapshot.val();
+      if (val && (val.avatar || val.name)) {
+        onProfileUpdate(val);
+      }
+    }
+  };
+
+  if (user.id) {
+    const uRef = ref(db, `users/${user.id}`);
+    unsubs.push(onValue(uRef, handleSnapshot));
+  }
+  if (user.phone) {
+    const sPhone = sanitizeKey(user.phone);
+    if (sPhone) {
+      const pRef = ref(db, `registered_users/${sPhone}`);
+      unsubs.push(onValue(pRef, handleSnapshot));
+    }
+  }
+  if (user.email) {
+    const sEmail = sanitizeKey(user.email);
+    if (sEmail) {
+      const eRef = ref(db, `registered_users/${sEmail}`);
+      unsubs.push(onValue(eRef, handleSnapshot));
+    }
+  }
+
+  return () => {
+    unsubs.forEach(unsub => unsub && unsub());
+  };
+};
+
+/**
  * Link a group to a member's phone and email in Firebase
  * so the group is automatically discovered on their device!
  */
@@ -125,6 +166,21 @@ export const linkGroupToUserContact = (contactKey, syncCode) => {
 
   const userGroupRef = ref(db, `user_groups/${sKey}/${code}`);
   set(userGroupRef, true).catch(err => console.warn('linkGroup error:', err));
+};
+
+/**
+ * Unlink a group from a member's phone/email in Firebase.
+ * Call this when a user leaves or is removed from a group so that
+ * the auto-discover listener does NOT re-join them automatically.
+ */
+export const unlinkGroupFromUserContact = (contactKey, syncCode) => {
+  if (!db || !contactKey || !syncCode) return;
+  const sKey = sanitizeKey(contactKey);
+  if (!sKey) return;
+  const code = syncCode.toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+  const userGroupRef = ref(db, `user_groups/${sKey}/${code}`);
+  remove(userGroupRef).catch(err => console.warn('unlinkGroup error:', err));
 };
 
 /**
@@ -197,6 +253,187 @@ export const deleteCloudGroup = (syncCode) => {
 };
 
 /**
+ * Get all possible routing keys for a user (ID, sanitized phone, sanitized email)
+ */
+export const getUserContactKeys = (user) => {
+  if (!user) return [];
+  const keys = new Set();
+  if (user.id) keys.add(`uid_${user.id}`);
+  if (user.phone) {
+    const sPhone = sanitizeKey(user.phone);
+    if (sPhone) keys.add(`phone_${sPhone}`);
+  }
+  if (user.email) {
+    const sEmail = sanitizeKey(user.email);
+    if (sEmail) keys.add(`email_${sEmail}`);
+  }
+  return Array.from(keys);
+};
+
+/**
+ * Publish a direct (non-group) expense to all involved participants' cloud mailboxes
+ */
+export const publishDirectExpense = (expense, participants = [], authorProfile = null) => {
+  if (!db || !expense || !expense.id) return;
+
+  const payload = {
+    expense,
+    members: participants,
+    authorProfile: authorProfile || null,
+    lastUpdated: new Date().toISOString(),
+  };
+
+  // Collect all destination routing keys across all participants
+  const targetKeys = new Set();
+  participants.forEach(user => {
+    getUserContactKeys(user).forEach(k => targetKeys.add(k));
+  });
+  if (authorProfile) {
+    getUserContactKeys(authorProfile).forEach(k => targetKeys.add(k));
+  }
+
+  targetKeys.forEach(userKey => {
+    const expRef = ref(db, `direct_expenses/${userKey}/${expense.id}`);
+    set(expRef, payload).catch(err => console.warn('publishDirectExpense error:', err));
+  });
+};
+
+/**
+ * Delete a direct (non-group) expense in Firebase across all participants
+ */
+export const deleteDirectExpense = (expenseId, participants = []) => {
+  if (!db || !expenseId) return;
+
+  const payload = {
+    id: expenseId,
+    deleted: true,
+    lastUpdated: new Date().toISOString(),
+  };
+
+  const targetKeys = new Set();
+  participants.forEach(user => {
+    getUserContactKeys(user).forEach(k => targetKeys.add(k));
+  });
+
+  targetKeys.forEach(userKey => {
+    const expRef = ref(db, `direct_expenses/${userKey}/${expenseId}`);
+    set(expRef, payload).catch(err => console.warn('deleteDirectExpense error:', err));
+  });
+};
+
+/**
+ * Publish a direct (non-group) settlement to all involved participants' cloud mailboxes
+ */
+export const publishDirectSettlement = (settlement, participants = [], authorProfile = null) => {
+  if (!db || !settlement || !settlement.id) return;
+
+  const payload = {
+    settlement,
+    members: participants,
+    authorProfile: authorProfile || null,
+    lastUpdated: new Date().toISOString(),
+  };
+
+  const targetKeys = new Set();
+  participants.forEach(user => {
+    getUserContactKeys(user).forEach(k => targetKeys.add(k));
+  });
+  if (authorProfile) {
+    getUserContactKeys(authorProfile).forEach(k => targetKeys.add(k));
+  }
+
+  targetKeys.forEach(userKey => {
+    const setRef = ref(db, `direct_settlements/${userKey}/${settlement.id}`);
+    set(setRef, payload).catch(err => console.warn('publishDirectSettlement error:', err));
+  });
+};
+
+/**
+ * Delete a direct (non-group) settlement in Firebase across all participants
+ */
+export const deleteDirectSettlement = (settlementId, participants = []) => {
+  if (!db || !settlementId) return;
+
+  const payload = {
+    id: settlementId,
+    deleted: true,
+    lastUpdated: new Date().toISOString(),
+  };
+
+  const targetKeys = new Set();
+  participants.forEach(user => {
+    getUserContactKeys(user).forEach(k => targetKeys.add(k));
+  });
+
+  targetKeys.forEach(userKey => {
+    const setRef = ref(db, `direct_settlements/${userKey}/${settlementId}`);
+    set(setRef, payload).catch(err => console.warn('deleteDirectSettlement error:', err));
+  });
+};
+
+/**
+ * Subscribe to realtime direct expenses addressed to the current logged-in user
+ */
+export const listenForDirectExpenses = (user, onExpenseData) => {
+  if (!db || !user) return () => {};
+
+  const keys = getUserContactKeys(user);
+  if (keys.length === 0) return () => {};
+
+  const unsubs = [];
+
+  keys.forEach(userKey => {
+    const userExpensesRef = ref(db, `direct_expenses/${userKey}`);
+    const unsub = onValue(userExpensesRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data && typeof data === 'object') {
+        Object.values(data).forEach(expensePayload => {
+          if (expensePayload) {
+            onExpenseData(expensePayload);
+          }
+        });
+      }
+    });
+    unsubs.push(unsub);
+  });
+
+  return () => {
+    unsubs.forEach(unsub => unsub && unsub());
+  };
+};
+
+/**
+ * Subscribe to realtime direct settlements addressed to the current logged-in user
+ */
+export const listenForDirectSettlements = (user, onSettlementData) => {
+  if (!db || !user) return () => {};
+
+  const keys = getUserContactKeys(user);
+  if (keys.length === 0) return () => {};
+
+  const unsubs = [];
+
+  keys.forEach(userKey => {
+    const userSettlementsRef = ref(db, `direct_settlements/${userKey}`);
+    const unsub = onValue(userSettlementsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data && typeof data === 'object') {
+        Object.values(data).forEach(settlementPayload => {
+          if (settlementPayload) {
+            onSettlementData(settlementPayload);
+          }
+        });
+      }
+    });
+    unsubs.push(unsub);
+  });
+
+  return () => {
+    unsubs.forEach(unsub => unsub && unsub());
+  };
+};
+
+/**
  * One-time fetch to check if a sync code exists in Firebase.
  * Returns the cloud data or null.
  */
@@ -211,3 +448,78 @@ export const fetchCloudGroup = async (syncCode) => {
     return null;
   }
 };
+/**
+ * Save this device's FCM push token to Firebase so Cloud Functions can notify it.
+ * Called once on login and whenever the token refreshes.
+ */
+export const saveFCMToken = (userId, token) => {
+  if (!db || !userId || !token) return;
+  const tokenRef = ref(db, `fcm_tokens/${userId}`);
+  set(tokenRef, {
+    token,
+    updatedAt: new Date().toISOString(),
+  }).catch(err => console.warn('saveFCMToken error:', err));
+};
+
+/**
+ * Fetch FCM tokens for a list of user IDs.
+ * Used as a fallback reference; token lookup is primarily done in the Cloudflare Worker.
+ * Returns an array of token strings.
+ */
+export const getGroupMemberFCMTokens = async (userIds = []) => {
+  if (!db || !userIds.length) return [];
+  const tokens = [];
+  await Promise.all(
+    userIds.map(async (uid) => {
+      try {
+        const snap = await get(ref(db, `fcm_tokens/${uid}`));
+        if (snap.exists()) {
+          const val = snap.val();
+          if (val?.token) tokens.push(val.token);
+        }
+      } catch (e) {
+        console.warn('getGroupMemberFCMTokens error:', e);
+      }
+    })
+  );
+  return tokens;
+};
+
+/**
+ * Send a push notification to group members via the Cloudflare Worker.
+ * The Worker reads FCM tokens and calls FCM API server-side.
+ *
+ * CLOUDFLARE_WORKER_URL and NOTIFY_SECRET are set in src/utils/notifyConfig.js
+ * (you fill these in after deploying the Cloudflare Worker)
+ *
+ * action: 'expense_added' | 'settlement_added' | 'expense_deleted'
+ */
+export const triggerNotification = async (payload) => {
+  // Import config lazily to avoid circular deps
+  let workerUrl, notifySecret;
+  try {
+    const cfg = await import('./notifyConfig.js');
+    workerUrl = cfg.CLOUDFLARE_WORKER_URL;
+    notifySecret = cfg.NOTIFY_SECRET;
+  } catch {
+    console.warn('notifyConfig.js not found — push notifications disabled');
+    return;
+  }
+
+  if (!workerUrl || workerUrl === 'PASTE_YOUR_WORKER_URL_HERE') {
+    console.info('Cloudflare Worker URL not configured yet. Skipping push notification.');
+    return;
+  }
+
+  try {
+    await fetch(workerUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...payload, secret: notifySecret }),
+    });
+  } catch (err) {
+    // Non-critical — notification failure should never break the main app flow
+    console.warn('triggerNotification error:', err.message);
+  }
+};
+

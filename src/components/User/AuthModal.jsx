@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Smartphone, Mail, Lock, User, ArrowRight, Upload, Shuffle, Check, Loader2, MailCheck, LogIn } from 'lucide-react';
-import { registerCloudUser, fetchCloudUserProfile, auth } from '../../utils/firebaseSync';
+import { registerCloudUser, fetchCloudUserProfile, lookupCloudUser, auth } from '../../utils/firebaseSync';
 import { 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword, 
   sendEmailVerification 
 } from 'firebase/auth';
-import { avatarOnError, getFallbackAvatarUrl } from '../../utils/avatarHelper';
+import { avatarOnError, getFallbackAvatarUrl, compressImage } from '../../utils/avatarHelper';
 
 
 const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
@@ -105,16 +105,15 @@ export const AuthModal = ({ onLoginSuccess }) => {
     setAvatar(getFallbackAvatarUrl(randomSeed));
   };
 
-  const handlePhotoUpload = (e) => {
+  const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          setAvatar(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressed = await compressImage(file);
+        setAvatar(compressed);
+      } catch (err) {
+        console.warn('Image compression failed:', err);
+      }
     }
   };
 
@@ -137,9 +136,8 @@ export const AuthModal = ({ onLoginSuccess }) => {
   };
 
   const createLocalAccount = async () => {
-    const existingLocal = localStorage.getItem('splitwise_my_user_id');
-    const localId = existingLocal || `user_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    await completeLogin(buildSignupProfile(localId));
+    const freshId = `user_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    await completeLogin(buildSignupProfile(freshId));
   };
 
   const handleSubmit = async (e) => {
@@ -217,13 +215,21 @@ export const AuthModal = ({ onLoginSuccess }) => {
 
       if (authMode === 'SIGN_IN' && isFirebaseAuthUnavailable(err)) {
         try {
+          // 1. Check if profile exists in Firebase Realtime Database (e.g. registered on mobile device)
+          const cloudUser = await lookupCloudUser(email.trim().toLowerCase());
+          if (cloudUser) {
+            await completeLogin(cloudUser);
+            return;
+          }
+
+          // 2. Check local account stored in localStorage
           const localAccount = JSON.parse(localStorage.getItem(LOCAL_AUTH_KEY) || 'null');
           if (localAccount?.profile && localAccount.email === email.trim().toLowerCase()) {
             await completeLogin(localAccount.profile);
             return;
           }
         } catch (localErr) {
-          console.warn('Local account lookup failed:', localErr);
+          console.warn('Cross-device cloud / local account lookup failed:', localErr);
         }
       }
 

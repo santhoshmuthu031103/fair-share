@@ -39,6 +39,7 @@ export const GroupDetail = ({
   onDeleteGroup,
   onLeaveGroup,
   onAddMembersToGroup,
+  onRemoveMemberFromGroup,
   onDeleteExpense 
 }) => {
   const [selectedExpense, setSelectedExpense] = useState(null);
@@ -51,8 +52,8 @@ export const GroupDetail = ({
     .map(mId => friends.find(f => f.id === mId))
     .filter(Boolean);
 
-  const groupExps = expenses.filter(e => e.groupId === group.id);
-  const groupSets = settlements.filter(s => s.groupId === group.id);
+  const groupExps = expenses.filter(e => e.groupId === group.id && !e.isDeleted);
+  const groupSets = settlements.filter(s => s.groupId === group.id && !s.isDeleted);
 
   // Calculate Net Balances using Ledger Engine
   const ledger = buildLedger(expenses, settlements, currentUserId, friends, [group]);
@@ -198,6 +199,29 @@ export const GroupDetail = ({
             >
               <img src={getAvatarUrl(m)} alt={m.name} style={{ width: '20px', height: '20px', borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }} onError={avatarOnError(m.name)} />
               <span>{m.id === currentUserId ? 'You' : m.name.split(' ')[0]}</span>
+              {m.id !== currentUserId && onRemoveMemberFromGroup && (
+                <span 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (window.confirm(`Remove ${m.name} from "${group.name}"?`)) {
+                      onRemoveMemberFromGroup(group.id, m.id);
+                    }
+                  }}
+                  style={{ 
+                    cursor: 'pointer', 
+                    color: 'var(--text-muted)', 
+                    marginLeft: '2px', 
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    padding: '2px',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                  title={`Remove ${m.name}`}
+                >
+                  ✕
+                </span>
+              )}
             </div>
           ))}
 

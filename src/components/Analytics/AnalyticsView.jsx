@@ -3,16 +3,18 @@ import { CATEGORIES, getCategoryMeta, formatCurrency } from '../../utils/formatt
 import { TrendingUp, Award, Crown, Trophy, Star, Scissors, PartyPopper, Landmark } from 'lucide-react';
 import { avatarOnError, getAvatarUrl } from '../../utils/avatarHelper';
 import { buildLedger } from '../../utils/debtCalculator';
+import { ActivityFeed } from '../Activity/ActivityFeed';
 
-export const AnalyticsView = ({ expenses, groups, friends, settlements, currency, currentUser, onOpenRoulette }) => {
+export const AnalyticsView = ({ expenses, groups, friends, settlements, currency, currentUser, onOpenRoulette, onDeleteExpense, onDeleteSettlement }) => {
   const [activeSection, setActiveSection] = useState('overview');
-  const totalSpend = expenses.reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0);
+  const activeExpenses = expenses.filter(e => !e.isDeleted);
+  const totalSpend = activeExpenses.reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0);
   const currentUserId = currentUser?.id || friends[0]?.id;
 
   // ── Category breakdown ──
   const categoryTotals = {};
   Object.keys(CATEGORIES).forEach(cId => { categoryTotals[cId] = 0; });
-  expenses.forEach(e => {
+  activeExpenses.forEach(e => {
     const cat = e.category || 'general';
     categoryTotals[cat] = (categoryTotals[cat] || 0) + (parseFloat(e.amount) || 0);
   });
@@ -23,7 +25,7 @@ export const AnalyticsView = ({ expenses, groups, friends, settlements, currency
   // ── Payer breakdown ──
   const payerTotals = {};
   friends.forEach(f => { payerTotals[f.id] = 0; });
-  expenses.forEach(e => {
+  activeExpenses.forEach(e => {
     if (payerTotals[e.paidBy] !== undefined) {
       payerTotals[e.paidBy] += (parseFloat(e.amount) || 0);
     }
@@ -34,7 +36,7 @@ export const AnalyticsView = ({ expenses, groups, friends, settlements, currency
 
   // ── Monthly spending trend ──
   const monthlyTotals = {};
-  expenses.forEach(e => {
+  activeExpenses.forEach(e => {
     const d = new Date(e.date);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     monthlyTotals[key] = (monthlyTotals[key] || 0) + (parseFloat(e.amount) || 0);
@@ -45,7 +47,7 @@ export const AnalyticsView = ({ expenses, groups, friends, settlements, currency
   // ── Group spending comparison ──
   const groupTotals = {};
   groups.forEach(g => { groupTotals[g.id] = { name: g.name, total: 0, count: 0 }; });
-  expenses.forEach(e => {
+  activeExpenses.forEach(e => {
     if (groupTotals[e.groupId]) {
       groupTotals[e.groupId].total += (parseFloat(e.amount) || 0);
       groupTotals[e.groupId].count++;
@@ -82,16 +84,16 @@ export const AnalyticsView = ({ expenses, groups, friends, settlements, currency
   }
 
   // Big Spender — highest single expense
-  if (expenses.length > 0) {
-    const biggest = [...expenses].sort((a, b) => (parseFloat(b.amount) || 0) - (parseFloat(a.amount) || 0))[0];
+  if (activeExpenses.length > 0) {
+    const biggest = [...activeExpenses].sort((a, b) => (parseFloat(b.amount) || 0) - (parseFloat(a.amount) || 0))[0];
     const f = friends.find(fr => fr.id === biggest.paidBy);
     if (f) badges.push({ emoji: '\u{1F4B8}', title: 'Big Spender', desc: `Paid ${formatCurrency(biggest.amount, currency)} for "${biggest.title}"`, person: f });
   }
 
   // The Splitter — person who added the most expenses
-  if (expenses.length > 0) {
+  if (activeExpenses.length > 0) {
     const expCounts = {};
-    expenses.forEach(e => { expCounts[e.paidBy] = (expCounts[e.paidBy] || 0) + 1; });
+    activeExpenses.forEach(e => { expCounts[e.paidBy] = (expCounts[e.paidBy] || 0) + 1; });
     const splitter = Object.entries(expCounts).sort((a, b) => b[1] - a[1])[0];
     if (splitter) {
       const f = friends.find(fr => fr.id === splitter[0]);
@@ -161,6 +163,7 @@ export const AnalyticsView = ({ expenses, groups, friends, settlements, currency
   // Section pills
   const sections = [
     { id: 'overview', label: '\u{1F4CA} Overview' },
+    { id: 'activity', label: '\u{1F55B} Activity' },
     { id: 'badges', label: '\u{1F3C6} Badges' },
     { id: 'groups', label: '\u{1F465} Groups' },
   ];
@@ -374,6 +377,20 @@ export const AnalyticsView = ({ expenses, groups, friends, settlements, currency
             )}
           </div>
         </>
+      )}
+
+      {/* ACTIVITY */}
+      {activeSection === 'activity' && (
+        <ActivityFeed
+          expenses={expenses}
+          settlements={settlements}
+          groups={groups}
+          friends={friends}
+          currency={currency}
+          currentUser={currentUser}
+          onDeleteExpense={onDeleteExpense}
+          onDeleteSettlement={onDeleteSettlement}
+        />
       )}
 
       {/* BADGES */}

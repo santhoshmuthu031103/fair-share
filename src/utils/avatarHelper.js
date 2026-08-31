@@ -1,7 +1,47 @@
 /**
  * Avatar utility helpers
- * Provides consistent fallback handling for user avatars throughout the app.
+ * Provides consistent fallback handling and compression for user avatars throughout the app.
  */
+
+/**
+ * Compresses an image file (data URL) to a compact resolution & quality
+ * for instant cross-device realtime sync.
+ */
+export const compressImage = (file, maxWidth = 200, maxHeight = 200, quality = 0.8) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => resolve(e.target.result);
+      img.src = e.target.result;
+    };
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
+};
 
 /**
  * Returns the best avatar URL for a user object.

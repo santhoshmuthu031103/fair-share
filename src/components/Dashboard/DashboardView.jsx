@@ -33,6 +33,9 @@ export const DashboardView = ({
   const [expandedMemberId, setExpandedMemberId] = useState(null);
   const [selectedChartDay, setSelectedChartDay] = useState(null);
 
+  const activeExpenses = expenses.filter(e => !e.isDeleted);
+  const activeSettlements = settlements.filter(s => !s.isDeleted);
+
   // 1. Build canonical ledger
   const ledger = buildLedger(expenses, settlements, currentUserId, friends, groups);
   const myNet = ledger.global.netBalances[currentUserId] || 0;
@@ -40,7 +43,7 @@ export const DashboardView = ({
   // Calculate total owed to user and total user owes
   const totalYouAreOwed = ledger.global.totalIsOwed || 0;
   const totalYouOwe = ledger.global.totalOwes || 0;
-  let totalGroupSpend = expenses.reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0);
+  let totalGroupSpend = activeExpenses.reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0);
 
   // Deduplicate friends by ID to prevent duplicate "You" entries
   const uniqueFriends = friends.reduce((acc, f) => {
@@ -71,7 +74,7 @@ export const DashboardView = ({
   // Category breakdown
   const categoryTotals = {};
   Object.keys(CATEGORIES).forEach(catKey => { categoryTotals[catKey] = 0; });
-  expenses.forEach(e => {
+  activeExpenses.forEach(e => {
     const cat = e.category || 'other';
     if (categoryTotals[cat] !== undefined) {
       categoryTotals[cat] += (parseFloat(e.amount) || 0);
@@ -98,7 +101,7 @@ export const DashboardView = ({
     const formattedShort = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
     // Calculate how much the user personally spent/paid on this day
-    const dayExpenses = expenses.filter(e => {
+    const dayExpenses = activeExpenses.filter(e => {
       if (!e.date) return false;
       const expDate = new Date(e.date).toISOString().split('T')[0];
       return expDate === dateStr;
@@ -293,7 +296,7 @@ export const DashboardView = ({
           {memberStats.map(({ friend, totalPaid, totalConsumed, totalSettledPaid, totalSettledReceived, totalLent, netBal }) => {
             const isMe = friend.id === currentUserId;
             const isExpanded = expandedMemberId === friend.id;
-            const paidList = expenses.filter(e => e.paidBy === friend.id);
+            const paidList = activeExpenses.filter(e => e.paidBy === friend.id);
             const pairDebts = ledger.global.pairwiseDebts;
             const amtVsMe = isMe ? null : (pairDebts[friend.id] || 0);
 
@@ -378,7 +381,7 @@ export const DashboardView = ({
                 {/* Expanded Details */}
                 {isExpanded && (() => {
                   // Build per-expense share breakdown for this member
-                  const involvedExpenses = expenses.filter(e => {
+                  const involvedExpenses = activeExpenses.filter(e => {
                     const activeMembers = e.recipientIds && e.recipientIds.length > 0
                       ? e.recipientIds
                       : friends.map(f => f.id);

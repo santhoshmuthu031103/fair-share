@@ -131,6 +131,9 @@ const simplifyDebts = (netBalances = {}, simplify = false) => {
  * Calculates raw, unsimplified 1-to-1 pairwise debts for a specific set of expenses/settlements.
  */
 const getExactPairwiseDebts = (expenses = [], settlements = [], members = []) => {
+  const activeExpenses = expenses.filter(e => !e.isDeleted);
+  const activeSettlements = settlements.filter(s => !s.isDeleted);
+
   const matrix = {};
   members.forEach(m => {
     matrix[m.id] = {};
@@ -139,7 +142,7 @@ const getExactPairwiseDebts = (expenses = [], settlements = [], members = []) =>
     });
   });
 
-  expenses.forEach(exp => {
+  activeExpenses.forEach(exp => {
     const shares = calculateExpenseShares(exp, members);
     const payer = exp.paidBy;
 
@@ -188,6 +191,9 @@ const getExactPairwiseDebts = (expenses = [], settlements = [], members = []) =>
  * Takes all transactions and computes exact balances for global context and per-group contexts.
  */
 export const buildLedger = (expenses = [], settlements = [], currentUserId, friends = [], groups = []) => {
+  const activeExpenses = expenses.filter(e => !e.isDeleted);
+  const activeSettlements = settlements.filter(s => !s.isDeleted);
+
   const ledger = {
     global: {
       netBalances: {}, // User's absolute net balance (Paid - Consumed)
@@ -231,7 +237,7 @@ export const buildLedger = (expenses = [], settlements = [], currentUserId, frie
     });
   });
 
-  expenses.forEach(e => {
+  activeExpenses.forEach(e => {
     const gId = e.groupId || 'non-group';
     if (!groupExps[gId]) groupExps[gId] = [];
     groupExps[gId].push(e);
@@ -249,7 +255,7 @@ export const buildLedger = (expenses = [], settlements = [], currentUserId, frie
     });
   });
 
-  settlements.forEach(s => {
+  activeSettlements.forEach(s => {
     const gId = s.groupId || 'non-group';
     if (!groupSets[gId]) groupSets[gId] = [];
     groupSets[gId].push(s);

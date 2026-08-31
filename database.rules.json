@@ -1,0 +1,44 @@
+{
+  "rules": {
+    ".read": "auth != null",
+    ".write": "auth != null",
+    "groups": {
+      "$syncCode": {
+        ".read": true,
+        ".write": true
+      }
+    },
+    "fcm_tokens": {
+      "$userId": {
+        ".read": "auth != null",
+        ".write": true
+      }
+    },
+    "notification_triggers": {
+      "$syncCode": {
+        ".read": "auth != null",
+        ".write": true
+      }
+    },
+    "registered_users": {
+      ".read": true,
+      ".write": true
+    },
+    "users": {
+      ".read": true,
+      ".write": true
+    },
+    "user_groups": {
+      ".read": true,
+      ".write": true
+    },
+    "direct_expenses": {
+      ".read": true,
+      ".write": true
+    },
+    "direct_settlements": {
+      ".read": true,
+      ".write": true
+    }
+  }
+}
