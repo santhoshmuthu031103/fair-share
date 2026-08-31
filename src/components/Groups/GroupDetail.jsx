@@ -59,6 +59,7 @@ export const GroupDetail = ({
   const ledger = buildLedger(expenses, settlements, currentUserId, friends, [group]);
   const netBalances = ledger.groups[group.id]?.netBalances || {};
   const transactionsToDisplay = ledger.groups[group.id]?.pairwiseDebts || [];
+  const myDebtsInGroup = transactionsToDisplay.filter(tx => tx.from === currentUserId);
 
   // Group Total Expense Spend
   const totalGroupSpend = groupExps.reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0);
@@ -308,7 +309,7 @@ export const GroupDetail = ({
                     <span style={{ fontWeight: '800', fontSize: '0.92rem' }}>
                       {formatCurrency(tx.amount, currency)}
                     </span>
-                    {(isUserPayer || isUserPayee) && (
+                    {isUserPayer && (
                       <button
                         onClick={() => onOpenSettleUp({
                           groupId: group.id,
@@ -327,6 +328,29 @@ export const GroupDetail = ({
                         Settle
                       </button>
                     )}
+                    {isUserPayee && (
+                      <button
+                        onClick={() => onOpenSettleUp({
+                          groupId: group.id,
+                          payerId: tx.from,
+                          payeeId: tx.to,
+                          amount: tx.amount
+                        })}
+                        className="btn-secondary"
+                        style={{
+                          height: '28px',
+                          padding: '0 10px',
+                          fontSize: '0.72rem',
+                          borderRadius: '14px',
+                          color: 'var(--accent-mint)',
+                          borderColor: 'rgba(16, 185, 129, 0.3)',
+                          background: 'rgba(16, 185, 129, 0.08)'
+                        }}
+                        title={`Record payment received from ${getUserName(tx.from)}`}
+                      >
+                        Received
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -336,15 +360,23 @@ export const GroupDetail = ({
 
         {/* Group Action Buttons */}
         <div style={{ display: 'flex', gap: '10px', margin: '14px 0' }}>
-          <button onClick={onOpenAddExpense} className="btn-primary">
+          <button onClick={onOpenAddExpense} className="btn-primary" style={{ flex: 1 }}>
             <Plus size={16} /> Add Expense
           </button>
-          <button 
-            onClick={() => onOpenSettleUp({ groupId: group.id })}
-            className="btn-secondary"
-          >
-            <DollarSign size={16} /> Settle Up
-          </button>
+          {myDebtsInGroup.length > 0 && (
+            <button 
+              onClick={() => onOpenSettleUp({ 
+                groupId: group.id,
+                payerId: currentUserId,
+                payeeId: myDebtsInGroup[0].to,
+                amount: myDebtsInGroup[0].amount 
+              })}
+              className="btn-secondary"
+              style={{ flex: 1 }}
+            >
+              <DollarSign size={16} /> Settle Up
+            </button>
+          )}
         </div>
 
         {/* Expenses List */}

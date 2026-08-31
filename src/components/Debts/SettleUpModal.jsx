@@ -115,9 +115,31 @@ export const SettleUpModal = ({
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>paid</div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: 'var(--accent-mint)' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: '800' }}>TO</span>
-            <ArrowRight size={22} />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+            <button
+              type="button"
+              onClick={() => {
+                const temp = payerId;
+                setPayerId(payeeId);
+                setPayeeId(temp);
+              }}
+              style={{
+                background: 'var(--bg-input)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '50%',
+                width: '36px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--accent-mint)',
+                cursor: 'pointer',
+              }}
+              title="Swap Payer and Recipient"
+            >
+              <ArrowRight size={18} />
+            </button>
+            <span style={{ fontSize: '0.65rem', fontWeight: '700', color: 'var(--text-muted)' }}>SWAP</span>
           </div>
 
           <div style={{ textAlign: 'center' }}>
@@ -125,6 +147,25 @@ export const SettleUpModal = ({
             <div style={{ fontWeight: '700', fontSize: '0.85rem' }}>{payeeName}</div>
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>received</div>
           </div>
+        </div>
+
+        {/* Direction Notice */}
+        <div style={{
+          padding: '8px 12px',
+          borderRadius: '10px',
+          marginBottom: '14px',
+          fontSize: '0.78rem',
+          fontWeight: '700',
+          textAlign: 'center',
+          background: payerId === currentUserId ? 'rgba(244, 63, 94, 0.08)' : 'rgba(16, 185, 129, 0.08)',
+          color: payerId === currentUserId ? 'var(--accent-coral)' : 'var(--accent-mint)',
+          border: `1px solid ${payerId === currentUserId ? 'rgba(244, 63, 94, 0.2)' : 'rgba(16, 185, 129, 0.2)'}`
+        }}>
+          {payerId === currentUserId 
+            ? `💳 You are paying ${payeeName}`
+            : payeeId === currentUserId
+            ? `💰 ${payerName} paid You (Payment Received)`
+            : `🔄 ${payerName} paid ${payeeName}`}
         </div>
 
         <form onSubmit={handleSubmit}>
