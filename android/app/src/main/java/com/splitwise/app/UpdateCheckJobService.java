@@ -134,7 +134,21 @@ public class UpdateCheckJobService extends JobService {
                 String lastNotified = prefs.getString(KEY_NOTIFIED_VERSION, "");
 
                 if (!latestVer.equals(lastNotified)) {
-                    String downloadUrl = json.optString("html_url", "https://github.com/santhoshmuthu031103/fair-share/releases/latest");
+                    // Find the direct APK download URL from release assets
+                    String downloadUrl = "https://github.com/santhoshmuthu031103/fair-share/raw/master/FairShare-latest.apk";
+                    try {
+                        org.json.JSONArray assets = json.optJSONArray("assets");
+                        if (assets != null) {
+                            for (int i = 0; i < assets.length(); i++) {
+                                org.json.JSONObject asset = assets.getJSONObject(i);
+                                String assetName = asset.optString("name", "");
+                                if (assetName.toLowerCase().endsWith(".apk")) {
+                                    downloadUrl = asset.optString("browser_download_url", downloadUrl);
+                                    break;
+                                }
+                            }
+                        }
+                    } catch (Exception ignored) {}
                     postNotification(context, latestVer, downloadUrl);
                     prefs.edit().putString(KEY_NOTIFIED_VERSION, latestVer).apply();
                 }

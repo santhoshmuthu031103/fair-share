@@ -19,12 +19,20 @@ export const UpdateModal = ({ updateInfo, onClose }) => {
       localStorage.setItem(`dismissed_update_${updateInfo.latestVersion}`, Date.now().toString());
     } catch (_) {}
     if (updateInfo.downloadUrl) {
-      window.open(updateInfo.downloadUrl, '_system');
+      // Direct APK download — create a hidden link and click it to trigger
+      // the Android download manager, instead of opening a browser page
+      const a = document.createElement('a');
+      a.href = updateInfo.downloadUrl;
+      a.download = `FairShare-v${updateInfo.latestVersion}.apk`;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     }
     setTimeout(() => {
       setIsDownloading(false);
       onClose();
-    }, 2000);
+    }, 3000);
   };
 
   return (
