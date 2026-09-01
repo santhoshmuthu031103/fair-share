@@ -6,11 +6,29 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+firebase-debug*.log
 
 node_modules
 dist
 dist-ssr
 *.local
+
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*service-account*.json
+*credentials*.json
+
+# Android Build & Keystores
+*.keystore
+*.jks
+android/.gradle/
+android/build/
+android/app/build/
+android/.idea/
 
 # Editor directories and files
 .vscode/*
