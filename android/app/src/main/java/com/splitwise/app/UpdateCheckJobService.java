@@ -66,11 +66,21 @@ public class UpdateCheckJobService extends JobService {
         }
     }
 
+    public static void checkNow(Context context) {
+        Executors.newSingleThreadExecutor().execute(() -> {
+            try {
+                performCheckAndNotify(context);
+            } catch (Exception e) {
+                Log.e(TAG, "checkNow error", e);
+            }
+        });
+    }
+
     @Override
     public boolean onStartJob(JobParameters params) {
         executor.execute(() -> {
             try {
-                checkForNewRelease();
+                performCheckAndNotify(this);
             } catch (Exception e) {
                 Log.e(TAG, "Error checking for update in background job", e);
             } finally {
@@ -85,7 +95,7 @@ public class UpdateCheckJobService extends JobService {
         return true;
     }
 
-    private void checkForNewRelease() {
+    public static void performCheckAndNotify(Context context) {
         HttpURLConnection conn = null;
         try {
             URL url = new URL(GITHUB_LATEST_RELEASE_URL);
@@ -114,18 +124,18 @@ public class UpdateCheckJobService extends JobService {
             String latestVer = extractVersion(tagName);
             if (latestVer.isEmpty()) return;
 
-            PackageInfo pInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
+            PackageInfo pInfo = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
             String currentVer = extractVersion(pInfo.versionName);
 
-            Log.d(TAG, "Background check: Current = " + currentVer + ", Latest = " + latestVer);
+            Log.d(TAG, "Update Check: Current = " + currentVer + ", Latest = " + latestVer);
 
             if (isNewerVersion(latestVer, currentVer)) {
-                SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+                SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
                 String lastNotified = prefs.getString(KEY_NOTIFIED_VERSION, "");
 
                 if (!latestVer.equals(lastNotified)) {
                     String downloadUrl = json.optString("html_url", "https://github.com/santhoshmuthu031103/fair-share/releases/latest");
-                    postUpdateNotification(latestVer, downloadUrl);
+                    postNotification(context, latestVer, downloadUrl);
                     prefs.edit().putString(KEY_NOTIFIED_VERSION, latestVer).apply();
                 }
             }
@@ -138,7 +148,7 @@ public class UpdateCheckJobService extends JobService {
         }
     }
 
-    private String extractVersion(String ver) {
+    private static String extractVersion(String ver) {
         if (ver == null) return "";
         Matcher m = Pattern.compile("(\\d+(?:\\.\\d+)+)").matcher(ver);
         if (m.find()) {
@@ -147,7 +157,7 @@ public class UpdateCheckJobService extends JobService {
         return ver.replaceAll("^v", "").trim();
     }
 
-    private boolean isNewerVersion(String newVer, String curVer) {
+    private static boolean isNewerVersion(String newVer, String curVer) {
         if (newVer.equals(curVer)) return false;
         String[] newParts = newVer.split("\\.");
         String[] curParts = curVer.split("\\.");
@@ -167,8 +177,8 @@ public class UpdateCheckJobService extends JobService {
         return false;
     }
 
-    private void postUpdateNotification(String latestVersion, String downloadUrl) {
-        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+    private static void postNotification(Context context, String latestVersion, String downloadUrl) {
+        NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm == null) return;
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -185,13 +195,13 @@ public class UpdateCheckJobService extends JobService {
 
         Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl));
         PendingIntent pendingIntent = PendingIntent.getActivity(
-                this,
+                context,
                 0,
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0)
         );
 
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.mipmap.ic_launcher_round)
                 .setContentTitle("🚀 FairShare Update Available!")
                 .setContentText("Version v" + latestVersion + " is ready. Tap to download & update.")
