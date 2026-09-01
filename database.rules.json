@@ -1,42 +1,56 @@
 {
   "rules": {
+    ".read": false,
+    ".write": false,
     "groups": {
       "$syncCode": {
-        ".read": true,
-        ".write": true
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['syncCode', 'group'])"
       }
     },
     "fcm_tokens": {
       "$userId": {
-        ".read": true,
-        ".write": true
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "registered_users": {
+      ".read": "auth != null",
+      "$key": {
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['id', 'name'])"
+      }
+    },
+    "users": {
+      "$userId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "user_groups": {
+      "$userId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "direct_expenses": {
+      "$syncKey": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "direct_settlements": {
+      "$syncKey": {
+        ".read": "auth != null",
+        ".write": "auth != null"
       }
     },
     "notification_triggers": {
       "$syncCode": {
-        ".read": true,
-        ".write": true
+        ".read": "auth != null",
+        ".write": "auth != null"
       }
-    },
-    "registered_users": {
-      ".read": true,
-      ".write": true
-    },
-    "users": {
-      ".read": true,
-      ".write": true
-    },
-    "user_groups": {
-      ".read": true,
-      ".write": true
-    },
-    "direct_expenses": {
-      ".read": true,
-      ".write": true
-    },
-    "direct_settlements": {
-      ".read": true,
-      ".write": true
     }
   }
 }

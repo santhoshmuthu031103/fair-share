@@ -1,6 +1,6 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getDatabase, ref, onValue, set, get, remove, push } from 'firebase/database';
-import { getAuth } from 'firebase/auth';
+import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
 // Real Firebase project config
 const firebaseConfig = {
@@ -21,6 +21,17 @@ try {
   const app = existingApps.length > 0 ? existingApps[0] : initializeApp(firebaseConfig);
   db = getDatabase(app);
   auth = getAuth(app);
+
+  // Automatically authenticate app users securely in the background
+  if (auth) {
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        signInAnonymously(auth).catch((err) => {
+          console.warn('Background auth initialization:', err?.message);
+        });
+      }
+    });
+  }
 } catch (err) {
   console.warn('Firebase init error:', err);
 }
