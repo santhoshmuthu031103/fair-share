@@ -92,7 +92,7 @@ export const checkForAppUpdate = async () => {
     }
 
     // Find direct APK download url
-    let downloadUrl = data.html_url;
+    let downloadUrl = 'https://github.com/santhoshmuthu031103/fair-share/raw/master/FairShare-latest.apk';
     if (Array.isArray(data.assets) && data.assets.length > 0) {
       const apkAsset = data.assets.find(a => a.name && a.name.toLowerCase().endsWith('.apk'));
       if (apkAsset && apkAsset.browser_download_url) {
