@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, UserPlus, Share2, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { X, UserPlus, Share2, CheckCircle2, AlertCircle, Loader2, MessageCircle, Copy, Check } from 'lucide-react';
 import { lookupCloudUser } from '../../utils/firebaseSync';
 import { avatarOnError, getFallbackAvatarUrl } from '../../utils/avatarHelper';
 import { APP_DOWNLOAD_URL, APP_RELEASES_URL } from '../../utils/updateChecker';
@@ -16,6 +16,7 @@ export const AddFriendModal = ({ onClose, onAddFriend }) => {
   const [isSearching, setIsSearching] = useState(false);
   const [foundUser, setFoundUser] = useState(null);
   const [searchedKey, setSearchedKey] = useState('');
+  const [copied, setCopied] = useState(false);
 
   // Live lookup in Firebase whenever phone or email changes
   useEffect(() => {
@@ -90,27 +91,40 @@ export const AddFriendModal = ({ onClose, onAddFriend }) => {
     }
   };
 
-  const handleInvite = () => {
+  const getInviteText = () => {
     const friendPhone = phone.trim();
-    const inviteText = [
+    return [
       '👋 Hey! I use FairShare to split and track our shared expenses — it\'s super easy!',
       '',
+      '📲 Download FairShare here:',
+      APP_RELEASES_URL,
+      '',
       friendPhone
-        ? `✨ Download the app, register with your number (${friendPhone}) and we'll link up automatically!`
-        : '✨ Download the app and register with your mobile number — we\'ll link up automatically!',
+        ? `✨ Once installed, register with your number (${friendPhone}) and we'll link up automatically!`
+        : '✨ Once installed, register with your mobile number and we\'ll link up automatically!',
     ].join('\n');
+  };
 
-    if (navigator.share) {
-      navigator.share({
-        title: 'Join me on FairShare! 💸',
-        text: inviteText,
-        url: APP_RELEASES_URL,
-      }).catch(() => {});
+  const handleWhatsAppInvite = () => {
+    const inviteText = getInviteText();
+    const cleanDigits = phone.replace(/[^\d]/g, '');
+    const waUrl = cleanDigits && cleanDigits.length >= 10
+      ? `https://wa.me/${cleanDigits}?text=${encodeURIComponent(inviteText)}`
+      : `https://api.whatsapp.com/send?text=${encodeURIComponent(inviteText)}`;
+    window.open(waUrl, '_system');
+  };
+
+  const handleCopyLink = () => {
+    const inviteText = getInviteText();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(inviteText).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2500);
+      }).catch(() => {
+        alert('Invite link:\n' + APP_RELEASES_URL);
+      });
     } else {
-      const fullMsg = inviteText + '\n\n' + APP_RELEASES_URL;
-      navigator.clipboard.writeText(fullMsg)
-        .then(() => alert('✅ Invite copied! Send it to your friend on WhatsApp or SMS.'))
-        .catch(() => {});
+      alert('Invite link:\n' + APP_RELEASES_URL);
     }
   };
 
@@ -218,22 +232,52 @@ export const AddFriendModal = ({ onClose, onAddFriend }) => {
             )}
           </div>
 
-          <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={handleInvite}
-              style={{ flex: '1', height: '46px', gap: '6px', fontSize: '0.88rem' }}
-            >
-              <Share2 size={15} /> Invite
-            </button>
+          {/* Action Buttons */}
+          <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <button
               type="submit"
               className="btn-primary"
-              style={{ flex: '2', height: '46px', gap: '6px', fontSize: '0.88rem' }}
+              style={{ width: '100%', height: '46px', gap: '6px', fontSize: '0.92rem', fontWeight: '800' }}
             >
-              <UserPlus size={15} /> {foundUser ? 'Add Verified Friend' : 'Add Friend'}
+              <UserPlus size={16} /> {foundUser ? 'Add Verified Friend' : 'Add Friend'}
             </button>
+
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={handleWhatsAppInvite}
+                style={{
+                  flex: 1,
+                  height: '40px',
+                  gap: '6px',
+                  fontSize: '0.82rem',
+                  fontWeight: '700',
+                  color: '#25D366',
+                  borderColor: 'rgba(37, 211, 102, 0.35)',
+                  background: 'rgba(37, 211, 102, 0.08)',
+                  justifyContent: 'center',
+                }}
+              >
+                <MessageCircle size={15} /> WhatsApp Invite
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={handleCopyLink}
+                style={{
+                  flex: 1,
+                  height: '40px',
+                  gap: '6px',
+                  fontSize: '0.82rem',
+                  fontWeight: '700',
+                  justifyContent: 'center',
+                }}
+              >
+                {copied ? <Check size={15} color="var(--accent-mint)" /> : <Copy size={15} />}
+                {copied ? 'Link Copied!' : 'Copy Link'}
+              </button>
+            </div>
           </div>
         </form>
       </div>

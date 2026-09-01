@@ -79,20 +79,8 @@ export const SplashScreen = ({ onFinish }) => {
         />
       </div>
 
-      {/* Welcome Title in Crisp White */}
+      {/* Tagline only — logo already has the FairShare name */}
       <div style={{ textAlign: 'center', animation: 'textFadeIn 0.9s ease-out forwards', zIndex: 1 }}>
-        <h1
-          style={{
-            fontSize: '1.9rem',
-            fontWeight: '900',
-            letterSpacing: '-0.5px',
-            margin: '0 0 6px 0',
-            color: '#ffffff',
-            textShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
-          }}
-        >
-          FairShare
-        </h1>
         <p
           style={{
             fontSize: '0.92rem',
@@ -106,7 +94,7 @@ export const SplashScreen = ({ onFinish }) => {
             textShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
           }}
         >
-          <Sparkles size={15} color="#60a5fa" /> Welcome to FairShare
+          <Sparkles size={15} color="#60a5fa" /> Split expenses, fairly.
         </p>
       </div>
 

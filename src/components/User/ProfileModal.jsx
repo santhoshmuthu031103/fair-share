@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, User, Phone, Mail, LogOut, Trash2, Check, Sparkles, AlertTriangle, Upload, Shuffle, Smile, Rocket, RefreshCw, Share2 } from 'lucide-react';
+import { X, User, Phone, Mail, LogOut, Trash2, Check, Sparkles, AlertTriangle, Upload, Shuffle, Smile, Rocket, RefreshCw, Share2, MessageCircle, Copy } from 'lucide-react';
 import { avatarOnError, getAvatarUrl, getFallbackAvatarUrl, compressImage } from '../../utils/avatarHelper';
 import { CURRENT_APP_VERSION, checkForAppUpdate, APP_DOWNLOAD_URL, APP_RELEASES_URL } from '../../utils/updateChecker';
 
@@ -64,6 +64,7 @@ export const ProfileModal = ({ currentUser, onClose, onUpdateProfile, onLogout, 
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [updateMessage, setUpdateMessage] = useState('');
+  const [inviteCopied, setInviteCopied] = useState(false);
 
   const handleManualUpdateCheck = async () => {
     setIsCheckingUpdate(true);
@@ -337,27 +338,81 @@ export const ProfileModal = ({ currentUser, onClose, onUpdateProfile, onLogout, 
             </button>
           </div>
 
-          {/* Invite Friends */}
-          <button
-            type="button"
-            onClick={() => {
-              const inviteText = [
-                '👋 Hey! I use FairShare to split and track our shared expenses — it\'s super easy!',
-                '',
-                '✨ Download the app and register with your mobile number — we\'ll link up automatically!',
-              ].join('\n');
-              if (navigator.share) {
-                navigator.share({ title: 'Join me on FairShare! 💸', text: inviteText, url: APP_RELEASES_URL }).catch(() => {});
-              } else {
-                navigator.clipboard.writeText(inviteText + '\n\n' + APP_RELEASES_URL)
-                  .then(() => alert('✅ Invite copied! Send it to your friends on WhatsApp or SMS.')).catch(() => {});
-              }
-            }}
-            className="btn-secondary"
-            style={{ width: '100%', justifyContent: 'center', marginTop: '12px', color: 'var(--accent-blue)', borderColor: 'rgba(37, 99, 235, 0.3)', background: 'rgba(37, 99, 235, 0.07)' }}
-          >
-            <Share2 size={16} /> Invite Friends to FairShare
-          </button>
+          {/* Invite Friends Section */}
+          <div style={{
+            marginTop: '14px',
+            padding: '12px 14px',
+            borderRadius: '14px',
+            background: 'var(--bg-input)',
+            border: '1px solid var(--border-color)',
+          }}>
+            <div style={{ fontWeight: '800', fontSize: '0.85rem', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Share2 size={16} color="var(--accent-blue)" /> Invite Friends to FairShare
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  const inviteText = [
+                    '👋 Hey! I use FairShare to split and track our shared expenses — it\'s super easy!',
+                    '',
+                    '📲 Download FairShare here:',
+                    APP_RELEASES_URL,
+                    '',
+                    '✨ Register with your mobile number and we\'ll link up automatically!',
+                  ].join('\n');
+                  window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(inviteText)}`, '_system');
+                }}
+                className="btn-secondary"
+                style={{
+                  flex: 1,
+                  height: '38px',
+                  justifyContent: 'center',
+                  fontSize: '0.8rem',
+                  fontWeight: '700',
+                  color: '#25D366',
+                  borderColor: 'rgba(37, 211, 102, 0.35)',
+                  background: 'rgba(37, 211, 102, 0.08)',
+                }}
+              >
+                <MessageCircle size={15} /> WhatsApp
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const inviteText = [
+                    '👋 Hey! I use FairShare to split and track our shared expenses — it\'s super easy!',
+                    '',
+                    '📲 Download FairShare here:',
+                    APP_RELEASES_URL,
+                    '',
+                    '✨ Register with your mobile number and we\'ll link up automatically!',
+                  ].join('\n');
+                  if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(inviteText).then(() => {
+                      setInviteCopied(true);
+                      setTimeout(() => setInviteCopied(false), 2500);
+                    }).catch(() => {
+                      alert('Invite link:\n' + APP_RELEASES_URL);
+                    });
+                  } else {
+                    alert('Invite link:\n' + APP_RELEASES_URL);
+                  }
+                }}
+                className="btn-secondary"
+                style={{
+                  flex: 1,
+                  height: '38px',
+                  justifyContent: 'center',
+                  fontSize: '0.8rem',
+                  fontWeight: '700',
+                }}
+              >
+                {inviteCopied ? <Check size={15} color="var(--accent-mint)" /> : <Copy size={15} />}
+                {inviteCopied ? 'Copied!' : 'Copy Link'}
+              </button>
+            </div>
+          </div>
 
           <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid var(--border-color)' }}>
             {showResetConfirm ? (

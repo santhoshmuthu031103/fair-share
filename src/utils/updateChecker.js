@@ -3,7 +3,7 @@
  * Automatically checks for new FairShare APK versions via GitHub Releases
  */
 
-export const CURRENT_APP_VERSION = '1.4.2';
+export const CURRENT_APP_VERSION = '1.4.3';
 export const APP_DOWNLOAD_URL = 'https://github.com/santhoshmuthu031103/fair-share/releases/latest/download/FairShare-latest.apk';
 export const APP_RELEASES_URL = 'https://github.com/santhoshmuthu031103/fair-share/releases/latest';
 const GITHUB_REPO = 'santhoshmuthu031103/fair-share';
