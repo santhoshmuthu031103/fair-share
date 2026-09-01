@@ -4,7 +4,7 @@
  * and prompts the user to download and update.
  */
 
-export const CURRENT_APP_VERSION = '1.0.0';
+export const CURRENT_APP_VERSION = '1.1.0';
 const GITHUB_REPO = 'santhoshmuthu031103/fair-share';
 const GITHUB_LATEST_RELEASE_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
 
