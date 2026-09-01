@@ -1,7 +1,5 @@
 {
   "rules": {
-    ".read": "auth != null",
-    ".write": "auth != null",
     "groups": {
       "$syncCode": {
         ".read": true,
@@ -10,13 +8,13 @@
     },
     "fcm_tokens": {
       "$userId": {
-        ".read": "auth != null",
+        ".read": true,
         ".write": true
       }
     },
     "notification_triggers": {
       "$syncCode": {
-        ".read": "auth != null",
+        ".read": true,
         ".write": true
       }
     },
