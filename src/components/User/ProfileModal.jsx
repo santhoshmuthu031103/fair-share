@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { X, User, Phone, Mail, LogOut, Trash2, Check, Sparkles, AlertTriangle, Upload, Shuffle, Smile, Rocket, RefreshCw } from 'lucide-react';
+import { X, User, Phone, Mail, LogOut, Trash2, Check, Sparkles, AlertTriangle, Upload, Shuffle, Smile, Rocket, RefreshCw, Share2 } from 'lucide-react';
 import { avatarOnError, getAvatarUrl, getFallbackAvatarUrl, compressImage } from '../../utils/avatarHelper';
-import { CURRENT_APP_VERSION, checkForAppUpdate } from '../../utils/updateChecker';
+import { CURRENT_APP_VERSION, checkForAppUpdate, APP_DOWNLOAD_URL, APP_RELEASES_URL } from '../../utils/updateChecker';
 
 export const AVATAR_CHARACTERS = [
   {
@@ -336,6 +336,30 @@ export const ProfileModal = ({ currentUser, onClose, onUpdateProfile, onLogout, 
               {isCheckingUpdate ? 'Checking...' : 'Check Update'}
             </button>
           </div>
+
+          {/* Invite Friends */}
+          <button
+            type="button"
+            onClick={() => {
+              const inviteText = [
+                '👋 Hey! I use FairShare to split and track shared expenses — it\'s super easy!',
+                '',
+                '📲 Download the app here:',
+                APP_DOWNLOAD_URL,
+                '',
+                '✨ Register with your mobile number and we\'ll split expenses together!',
+              ].join('\n');
+              if (navigator.share) {
+                navigator.share({ title: 'Join me on FairShare! 💸', text: inviteText, url: APP_RELEASES_URL }).catch(() => {});
+              } else {
+                navigator.clipboard.writeText(inviteText).then(() => alert('✅ Invite copied! Send it to your friends on WhatsApp or SMS.')).catch(() => {});
+              }
+            }}
+            className="btn-secondary"
+            style={{ width: '100%', justifyContent: 'center', marginTop: '12px', color: 'var(--accent-blue)', borderColor: 'rgba(37, 99, 235, 0.3)', background: 'rgba(37, 99, 235, 0.07)' }}
+          >
+            <Share2 size={16} /> Invite Friends to FairShare
+          </button>
 
           <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid var(--border-color)' }}>
             {showResetConfirm ? (

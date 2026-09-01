@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, UserPlus, Share2, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { lookupCloudUser } from '../../utils/firebaseSync';
 import { avatarOnError, getFallbackAvatarUrl } from '../../utils/avatarHelper';
+import { APP_DOWNLOAD_URL, APP_RELEASES_URL } from '../../utils/updateChecker';
 
 const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 const validateMobile = (mobile) => /^[+]?[\d\s\-().]{7,15}$/.test(mobile.trim());
@@ -90,19 +91,28 @@ export const AddFriendModal = ({ onClose, onAddFriend }) => {
   };
 
   const handleInvite = () => {
+    const friendPhone = phone.trim();
     const inviteText = [
-      '👋 Hey! Join me on FairShare to split and track our shared expenses easily.',
+      '👋 Hey! I use FairShare to split and track shared expenses — it\'s super easy!',
       '',
-      '📲 Download and install FairShare.apk on your phone.',
-      '✨ Register with your mobile number (' + (phone.trim() || 'your phone number') + ') so we link automatically!',
+      '📲 Download the app here:',
+      APP_DOWNLOAD_URL,
+      '',
+      '✨ Once installed, register with your mobile number' + (friendPhone ? ` (${friendPhone})` : '') + ' and we\'ll link up automatically!',
     ].join('\n');
 
     if (navigator.share) {
-      navigator.share({ title: 'Join me on FairShare!', text: inviteText })
-        .catch(() => {});
+      navigator.share({
+        title: 'Join me on FairShare! 💸',
+        text: inviteText,
+        url: APP_RELEASES_URL,
+      }).catch(() => {});
     } else {
-      navigator.clipboard.writeText(inviteText);
-      alert('✅ Invite message copied to clipboard! Send it to your friend on WhatsApp or SMS.');
+      navigator.clipboard.writeText(inviteText).then(() => {
+        alert('✅ Invite message copied! Send it to your friend on WhatsApp or SMS.');
+      }).catch(() => {
+        alert('✅ Share link:\n' + APP_DOWNLOAD_URL);
+      });
     }
   };
 
