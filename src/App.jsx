@@ -18,6 +18,7 @@ import { AnalyticsView } from './components/Analytics/AnalyticsView';
 import { ProfileModal } from './components/User/ProfileModal';
 import { AuthModal } from './components/User/AuthModal';
 import { Toast } from './components/Layout/Toast';
+import { SplashScreen } from './components/Layout/SplashScreen';
 import { UpdateModal } from './components/Common/UpdateModal';
 import { checkForAppUpdate } from './utils/updateChecker';
 import { 
@@ -51,6 +52,7 @@ export function App() {
   const [rouletteWinnerId, setRouletteWinnerId] = useState(null);
   const [settleUpData, setSettleUpData] = useState({});
   const [appUpdateInfo, setAppUpdateInfo] = useState(null);
+  const [showSplash, setShowSplash] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     return localStorage.getItem('splitwise_is_logged_in') === 'true';
   });
@@ -66,6 +68,9 @@ export function App() {
     const timer = setTimeout(async () => {
       const info = await checkForAppUpdate();
       if (info && info.hasUpdate) {
+        // Show update notification toast
+        showToast(`🚀 New Update Available (v${info.latestVersion})! Tap to update.`, 'info');
+
         // Check if user dismissed this specific release version in this session
         const dismissed = sessionStorage.getItem(`dismissed_update_${info.latestVersion}`);
         if (!dismissed) {
@@ -1161,6 +1166,10 @@ export function App() {
 
   return (
     <div className={`app-container ${isDarkMode ? 'dark-theme' : 'light-theme'}`}>
+      {showSplash && (
+        <SplashScreen onFinish={() => setShowSplash(false)} />
+      )}
+
       <MobileFrame isFullScreen={isFullScreen || !isLoggedIn} toggleFullScreen={() => setIsFullScreen(!isFullScreen)}>
         {!isLoggedIn && (
           <AuthModal onLoginSuccess={handleRegisterLogin} />
