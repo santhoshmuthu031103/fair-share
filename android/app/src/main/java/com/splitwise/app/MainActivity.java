@@ -8,5 +8,9 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(NativeEmailPlugin.class);
         super.onCreate(savedInstanceState);
+
+        // Schedule native background worker for periodic update checks (runs even when app is closed)
+        UpdateCheckJobService.schedulePeriodicCheck(this);
     }
 }
+

@@ -68,38 +68,11 @@ export function App() {
     const timer = setTimeout(async () => {
       const info = await checkForAppUpdate();
       if (info && info.hasUpdate) {
-        // Check if user dismissed or snoozed this version in localStorage
-        const dismissedTimestamp = localStorage.getItem(`dismissed_update_${info.latestVersion}`);
-        const SNOOZE_MS = 24 * 60 * 60 * 1000; // 24 hours snooze
-        const isSnoozed = dismissedTimestamp && (Date.now() - parseInt(dismissedTimestamp, 10)) < SNOOZE_MS;
+        // Show in-app toast
+        showToast(`🚀 New Update Available (v${info.latestVersion})! Tap to update.`, 'info');
 
-        if (!isSnoozed) {
-          // Show in-app toast
-          showToast(`🚀 New Update Available (v${info.latestVersion})! Tap to update.`, 'info');
-
-          // Fire a real phone notification via Web Notifications API
-          // (works in Capacitor WebView on Android — no extra Java required)
-          try {
-            if ('Notification' in window) {
-              const perm = Notification.permission === 'granted'
-                ? 'granted'
-                : await Notification.requestPermission();
-              if (perm === 'granted') {
-                new Notification('🚀 FairShare Update Available!', {
-                  body: `Version ${info.latestVersion} is ready. Open the app to update now.`,
-                  icon: '/app-logo.png',
-                  tag: `fairshare-update-${info.latestVersion}`,
-                  renotify: false,
-                });
-              }
-            }
-          } catch (_) {
-            // Web Notifications not available — safe to ignore
-          }
-
-          // Show update modal
-          setAppUpdateInfo(info);
-        }
+        // Show update modal
+        setAppUpdateInfo(info);
       }
     }, 2000);
     return () => clearTimeout(timer);
