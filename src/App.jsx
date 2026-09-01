@@ -68,32 +68,36 @@ export function App() {
     const timer = setTimeout(async () => {
       const info = await checkForAppUpdate();
       if (info && info.hasUpdate) {
-        // Show in-app toast
-        showToast(`🚀 New Update Available (v${info.latestVersion})! Tap to update.`, 'info');
+        // Check if user dismissed or snoozed this version in localStorage
+        const dismissedTimestamp = localStorage.getItem(`dismissed_update_${info.latestVersion}`);
+        const SNOOZE_MS = 24 * 60 * 60 * 1000; // 24 hours snooze
+        const isSnoozed = dismissedTimestamp && (Date.now() - parseInt(dismissedTimestamp, 10)) < SNOOZE_MS;
 
-        // Fire a real phone notification via Web Notifications API
-        // (works in Capacitor WebView on Android — no extra Java required)
-        try {
-          if ('Notification' in window) {
-            const perm = Notification.permission === 'granted'
-              ? 'granted'
-              : await Notification.requestPermission();
-            if (perm === 'granted') {
-              new Notification('🚀 FairShare Update Available!', {
-                body: `Version ${info.latestVersion} is ready. Open the app to update now.`,
-                icon: '/app-logo.png',
-                tag: `fairshare-update-${info.latestVersion}`,
-                renotify: false,
-              });
+        if (!isSnoozed) {
+          // Show in-app toast
+          showToast(`🚀 New Update Available (v${info.latestVersion})! Tap to update.`, 'info');
+
+          // Fire a real phone notification via Web Notifications API
+          // (works in Capacitor WebView on Android — no extra Java required)
+          try {
+            if ('Notification' in window) {
+              const perm = Notification.permission === 'granted'
+                ? 'granted'
+                : await Notification.requestPermission();
+              if (perm === 'granted') {
+                new Notification('🚀 FairShare Update Available!', {
+                  body: `Version ${info.latestVersion} is ready. Open the app to update now.`,
+                  icon: '/app-logo.png',
+                  tag: `fairshare-update-${info.latestVersion}`,
+                  renotify: false,
+                });
+              }
             }
+          } catch (_) {
+            // Web Notifications not available — safe to ignore
           }
-        } catch (_) {
-          // Web Notifications not available — safe to ignore
-        }
 
-        // Show update modal (unless user dismissed this version)
-        const dismissed = sessionStorage.getItem(`dismissed_update_${info.latestVersion}`);
-        if (!dismissed) {
+          // Show update modal
           setAppUpdateInfo(info);
         }
       }
@@ -143,6 +147,11 @@ export function App() {
           saveFCMToken(currentUser.id, token);
           localStorage.setItem('fcm_token', token);
         }
+
+        // Subscribe to 'app_updates' topic so background notifications work even when app is closed
+        try {
+          await FirebaseMessaging.subscribeToTopic({ topic: 'app_updates' });
+        } catch (_) {}
 
         // Listen for token refresh
         FirebaseMessaging.addListener('tokenReceived', ({ token: newToken }) => {

@@ -6,8 +6,18 @@ export const UpdateModal = ({ updateInfo, onClose }) => {
 
   if (!updateInfo || !updateInfo.hasUpdate) return null;
 
+  const handleDismiss = () => {
+    try {
+      localStorage.setItem(`dismissed_update_${updateInfo.latestVersion}`, Date.now().toString());
+    } catch (_) {}
+    onClose();
+  };
+
   const handleDownload = () => {
     setIsDownloading(true);
+    try {
+      localStorage.setItem(`dismissed_update_${updateInfo.latestVersion}`, Date.now().toString());
+    } catch (_) {}
     if (updateInfo.downloadUrl) {
       window.open(updateInfo.downloadUrl, '_system');
     }
@@ -51,7 +61,7 @@ export const UpdateModal = ({ updateInfo, onClose }) => {
               </span>
             </div>
           </div>
-          <button onClick={onClose} className="icon-btn">
+          <button onClick={handleDismiss} className="icon-btn">
             <X size={18} />
           </button>
         </div>
@@ -84,7 +94,7 @@ export const UpdateModal = ({ updateInfo, onClose }) => {
         <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleDismiss}
             className="btn-secondary"
             style={{ flex: 1, height: '48px', fontWeight: '700' }}
           >

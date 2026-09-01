@@ -3,7 +3,7 @@
  * Automatically checks for new FairShare APK versions via GitHub Releases
  */
 
-export const CURRENT_APP_VERSION = '1.4.4';
+export const CURRENT_APP_VERSION = '1.4.5';
 export const APP_DOWNLOAD_URL = 'https://github.com/santhoshmuthu031103/fair-share/releases/latest/download/FairShare-latest.apk';
 export const APP_RELEASES_URL = 'https://github.com/santhoshmuthu031103/fair-share/releases/latest';
 const GITHUB_REPO = 'santhoshmuthu031103/fair-share';
@@ -16,8 +16,13 @@ const GITHUB_LATEST_RELEASE_URL = `https://api.github.com/repos/${GITHUB_REPO}/r
 export const isNewerVersion = (newVer, currentVer) => {
   if (!newVer || !currentVer) return false;
 
-  const cleanNew = String(newVer).replace(/^v/i, '').trim();
-  const cleanCur = String(currentVer).replace(/^v/i, '').trim();
+  const extract = (v) => {
+    const match = String(v).match(/(\d+(?:\.\d+)*)/);
+    return match ? match[1] : String(v).replace(/^v/i, '').trim();
+  };
+
+  const cleanNew = extract(newVer);
+  const cleanCur = extract(currentVer);
 
   // If versions are identical, definitely no update
   if (cleanNew === cleanCur) return false;
