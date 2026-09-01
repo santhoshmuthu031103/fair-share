@@ -1,7 +1,7 @@
 import os
 from PIL import Image, ImageDraw
 
-source_image_path = r"C:\Users\W2634\.gemini\antigravity-ide\brain\d008639f-daff-4f83-afa9-e58fba6a30e0\fairshare_light_hands_1788225532644.jpg"
+source_image_path = r"c:\Users\W2634\Documents\Antigravity\New folder\scratch\cleaned_hands_final.png"
 res_dir = r"c:\Users\W2634\Documents\Antigravity\New folder\android\app\src\main\res"
 public_dir = r"c:\Users\W2634\Documents\Antigravity\New folder\public"
 
@@ -9,8 +9,6 @@ public_dir = r"c:\Users\W2634\Documents\Antigravity\New folder\public"
 img = Image.open(source_image_path).convert("RGBA")
 
 # Mipmap densities and their standard launcher sizes (in px)
-# Android launcher icon: 48, 72, 96, 144, 192
-# Adaptive foreground: 108, 162, 216, 324, 432
 densities = {
     'mipmap-mdpi': (48, 108),
     'mipmap-hdpi': (72, 162),
@@ -19,10 +17,9 @@ densities = {
     'mipmap-xxxhdpi': (192, 432),
 }
 
-# Crop slightly to remove outer border frame if any, focusing on central logo mark
+# Crop slightly to center the hands emblem
 w, h = img.size
-# Let's inspect or crop center
-crop_box = (int(w * 0.04), int(h * 0.04), int(w * 0.96), int(h * 0.96))
+crop_box = (int(w * 0.05), int(h * 0.05), int(w * 0.95), int(h * 0.95))
 cropped_img = img.crop(crop_box)
 
 for folder, (icon_size, fg_size) in densities.items():
@@ -42,7 +39,7 @@ for folder, (icon_size, fg_size) in densities.items():
     round_img.putalpha(mask)
     round_img.save(os.path.join(target_folder, "ic_launcher_round.png"), "PNG")
     
-    # 3. Adaptive foreground (108dp canvas with 72dp safe zone in center)
+    # 3. Adaptive foreground (108dp canvas with safe zone in center)
     fg_img = Image.new('RGBA', (fg_size, fg_size), (255, 255, 255, 0))
     inner_size = int(fg_size * 0.72)
     inner_img = cropped_img.resize((inner_size, inner_size), Image.Resampling.LANCZOS)
@@ -50,7 +47,7 @@ for folder, (icon_size, fg_size) in densities.items():
     fg_img.paste(inner_img, (offset, offset))
     fg_img.save(os.path.join(target_folder, "ic_launcher_foreground.png"), "PNG")
     
-    # 4. Adaptive background (solid clean white #ffffff)
+    # 4. Adaptive background (solid clean white)
     bg_img = Image.new('RGBA', (fg_size, fg_size), (255, 255, 255, 255))
     bg_img.save(os.path.join(target_folder, "ic_launcher_background.png"), "PNG")
 
@@ -67,4 +64,4 @@ icon_512 = cropped_img.resize((512, 512), Image.Resampling.LANCZOS)
 icon_512.save(os.path.join(public_dir, "icon-512.png"), "PNG")
 icon_512.save(os.path.join(public_dir, "app-logo.png"), "PNG")
 
-print("All Android & Web launcher icons generated successfully!")
+print("All Android & Web launcher icons re-generated with cleaned hands logo!")
