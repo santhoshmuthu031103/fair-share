@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { X, User, Phone, Mail, LogOut, Trash2, Check, Sparkles, AlertTriangle, Upload, Shuffle, Smile } from 'lucide-react';
+import { X, User, Phone, Mail, LogOut, Trash2, Check, Sparkles, AlertTriangle, Upload, Shuffle, Smile, Rocket, RefreshCw } from 'lucide-react';
 import { avatarOnError, getAvatarUrl, getFallbackAvatarUrl, compressImage } from '../../utils/avatarHelper';
+import { CURRENT_APP_VERSION, checkForAppUpdate } from '../../utils/updateChecker';
 
 export const AVATAR_CHARACTERS = [
   {
@@ -54,13 +55,29 @@ export const AVATAR_CHARACTERS = [
 ];
 
 
-export const ProfileModal = ({ currentUser, onClose, onUpdateProfile, onLogout, onResetData }) => {
+export const ProfileModal = ({ currentUser, onClose, onUpdateProfile, onLogout, onResetData, onShowUpdateModal }) => {
   const [name, setName] = useState(currentUser?.name || '');
   const [email, setEmail] = useState(currentUser?.email || '');
   const [phone, setPhone] = useState(currentUser?.phone || '');
   const [avatar, setAvatar] = useState(currentUser?.avatar ? getAvatarUrl(currentUser) : AVATAR_CHARACTERS[0].url);
   const [isSaved, setIsSaved] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [updateMessage, setUpdateMessage] = useState('');
+
+  const handleManualUpdateCheck = async () => {
+    setIsCheckingUpdate(true);
+    setUpdateMessage('');
+    const info = await checkForAppUpdate();
+    setIsCheckingUpdate(false);
+    if (info && info.hasUpdate) {
+      if (onShowUpdateModal) onShowUpdateModal(info);
+      onClose();
+    } else {
+      setUpdateMessage(`✓ You're on the latest version (v${CURRENT_APP_VERSION})`);
+      setTimeout(() => setUpdateMessage(''), 4000);
+    }
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -276,6 +293,48 @@ export const ProfileModal = ({ currentUser, onClose, onUpdateProfile, onLogout, 
                 <LogOut size={16} /> Sign Out
               </button>
             )}
+          </div>
+
+          {/* App Version & Updates Card */}
+          <div style={{
+            marginTop: '16px',
+            padding: '12px 14px',
+            borderRadius: '14px',
+            background: 'var(--bg-input)',
+            border: '1px solid var(--border-color)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}>
+            <div>
+              <div style={{ fontWeight: '800', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Rocket size={16} color="var(--accent-mint)" />
+                FairShare <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: '600' }}>v{CURRENT_APP_VERSION}</span>
+              </div>
+              <div style={{ fontSize: '0.7rem', color: updateMessage ? 'var(--accent-mint)' : 'var(--text-muted)', fontWeight: '600', marginTop: '2px' }}>
+                {updateMessage || 'Auto-updates via GitHub Releases'}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleManualUpdateCheck}
+              disabled={isCheckingUpdate}
+              className="btn-secondary"
+              style={{
+                height: '32px',
+                padding: '0 10px',
+                fontSize: '0.72rem',
+                borderRadius: '10px',
+                color: 'var(--accent-mint)',
+                borderColor: 'rgba(16, 185, 129, 0.3)',
+                background: 'rgba(16, 185, 129, 0.08)',
+                cursor: isCheckingUpdate ? 'wait' : 'pointer'
+              }}
+            >
+              <RefreshCw size={13} style={{ animation: isCheckingUpdate ? 'spin 1s linear infinite' : 'none' }} />
+              {isCheckingUpdate ? 'Checking...' : 'Check Update'}
+            </button>
           </div>
 
           <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid var(--border-color)' }}>

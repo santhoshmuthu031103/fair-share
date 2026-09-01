@@ -18,6 +18,8 @@ import { AnalyticsView } from './components/Analytics/AnalyticsView';
 import { ProfileModal } from './components/User/ProfileModal';
 import { AuthModal } from './components/User/AuthModal';
 import { Toast } from './components/Layout/Toast';
+import { UpdateModal } from './components/Common/UpdateModal';
+import { checkForAppUpdate } from './utils/updateChecker';
 import { 
   subscribeToCloudGroup, 
   publishToCloudGroup, 
@@ -48,6 +50,7 @@ export function App() {
   const [modalType, setModalType] = useState(null);
   const [rouletteWinnerId, setRouletteWinnerId] = useState(null);
   const [settleUpData, setSettleUpData] = useState({});
+  const [appUpdateInfo, setAppUpdateInfo] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     return localStorage.getItem('splitwise_is_logged_in') === 'true';
   });
@@ -57,6 +60,21 @@ export function App() {
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
   };
+
+  // 🚀 Auto-check for updates on app startup (after 2s delay)
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      const info = await checkForAppUpdate();
+      if (info && info.hasUpdate) {
+        // Check if user dismissed this specific release version in this session
+        const dismissed = sessionStorage.getItem(`dismissed_update_${info.latestVersion}`);
+        if (!dismissed) {
+          setAppUpdateInfo(info);
+        }
+      }
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const isSyncingRef = useRef(false);
   const activeUnsubsRef = useRef({}); // syncCode -> unsub
@@ -1272,6 +1290,20 @@ export function App() {
           onUpdateProfile={handleUpdateProfile}
           onLogout={handleLogout}
           onResetData={handleResetAllData}
+          onShowUpdateModal={(info) => setAppUpdateInfo(info)}
+        />
+      )}
+
+      {/* App Update Notification Overlay */}
+      {appUpdateInfo && (
+        <UpdateModal
+          updateInfo={appUpdateInfo}
+          onClose={() => {
+            if (appUpdateInfo?.latestVersion) {
+              sessionStorage.setItem(`dismissed_update_${appUpdateInfo.latestVersion}`, 'true');
+            }
+            setAppUpdateInfo(null);
+          }}
         />
       )}
 
