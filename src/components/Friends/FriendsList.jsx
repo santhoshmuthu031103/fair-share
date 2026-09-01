@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { buildLedger } from '../../utils/debtCalculator';
 import { formatCurrency } from '../../utils/formatters';
-import { UserPlus, DollarSign, Trash2, Share2, Phone, Mail, Flame } from 'lucide-react';
+import { UserPlus, DollarSign, Trash2, Share2, Phone, Mail, Flame, MessageCircle, Copy, Check, X } from 'lucide-react';
 import { avatarOnError, getAvatarUrl } from '../../utils/avatarHelper';
+import { APP_RELEASES_URL } from '../../utils/updateChecker';
 import ROASTS from '../../data/roasts';
 import { openEmailComposer } from '../../utils/emailHelper';
 
@@ -58,23 +59,30 @@ export const FriendsList = ({
     }
   };
 
-  const handleShareInvite = () => {
-    const inviteText = [
-      "👋 Hey! I'm using Splitwise to split bills and track expenses.",
-      "",
-      "📲 Install Splitwise-App.apk on your phone!",
-      "Register with your mobile & email and we can split expenses seamlessly together."
-    ].join('\n');
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteCopied, setInviteCopied] = useState(false);
 
-    if (navigator.share) {
-      navigator.share({
-        title: 'Join me on Splitwise',
-        text: inviteText,
-      }).catch(() => {});
-    } else if (navigator.clipboard) {
-      navigator.clipboard.writeText(inviteText);
-      alert('✅ Invite message copied! Share it via WhatsApp or SMS to your friend.');
-    }
+  const getInviteText = () => [
+    '👋 Hey! I use FairShare to split and track our shared expenses — it\'s super easy!',
+    '',
+    '📲 Download FairShare here:',
+    APP_RELEASES_URL,
+    '',
+    '✨ Register with your mobile number and we\'ll link up automatically!',
+  ].join('\n');
+
+  const handleWhatsAppInvite = () => {
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(getInviteText())}`, '_system');
+    setInviteOpen(false);
+  };
+
+  const handleCopyInvite = () => {
+    navigator.clipboard.writeText(getInviteText()).then(() => {
+      setInviteCopied(true);
+      setTimeout(() => { setInviteCopied(false); setInviteOpen(false); }, 2000);
+    }).catch(() => {
+      alert('Invite link:\n' + APP_RELEASES_URL);
+    });
   };
 
   return (
@@ -85,18 +93,52 @@ export const FriendsList = ({
           <h2 style={{ fontSize: '1.2rem', fontWeight: '800' }}>Friends & Contacts ({friendsExceptYou.length})</h2>
           <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Track balances with friends</p>
         </div>
-        <div style={{ display: 'flex', gap: '6px' }}>
-          <button 
-            onClick={handleShareInvite} 
-            className="btn-secondary" 
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', position: 'relative' }}>
+          {inviteOpen && (
+            <div style={{
+              position: 'absolute',
+              right: '0',
+              top: '44px',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '14px',
+              padding: '10px',
+              display: 'flex',
+              gap: '8px',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+              zIndex: 100,
+              minWidth: '220px',
+            }}>
+              <button
+                onClick={handleWhatsAppInvite}
+                className="btn-secondary"
+                style={{ flex: 1, height: '36px', fontSize: '0.78rem', fontWeight: '700', color: '#25D366', borderColor: 'rgba(37,211,102,0.35)', background: 'rgba(37,211,102,0.08)', justifyContent: 'center' }}
+              >
+                <MessageCircle size={14} /> WhatsApp
+              </button>
+              <button
+                onClick={handleCopyInvite}
+                className="btn-secondary"
+                style={{ flex: 1, height: '36px', fontSize: '0.78rem', fontWeight: '700', justifyContent: 'center' }}
+              >
+                {inviteCopied ? <Check size={14} color="var(--accent-mint)" /> : <Copy size={14} />}
+                {inviteCopied ? 'Copied!' : 'Copy Link'}
+              </button>
+              <button onClick={() => setInviteOpen(false)} className="icon-btn" style={{ width: '28px', height: '28px', flexShrink: 0, alignSelf: 'center' }}>
+                <X size={13} />
+              </button>
+            </div>
+          )}
+          <button
+            onClick={() => setInviteOpen(prev => !prev)}
+            className="btn-secondary"
             style={{ flex: 'none', width: 'auto', height: '36px', padding: '0 12px', fontSize: '0.78rem', gap: '5px' }}
-            title="Invite friend via WhatsApp/SMS"
           >
             <Share2 size={14} /> Invite
           </button>
-          <button 
-            onClick={onOpenAddFriend} 
-            className="btn-primary" 
+          <button
+            onClick={onOpenAddFriend}
+            className="btn-primary"
             style={{ flex: 'none', width: 'auto', height: '36px', padding: '0 12px', fontSize: '0.78rem', gap: '5px' }}
           >
             <UserPlus size={14} /> Add

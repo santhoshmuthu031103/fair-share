@@ -19,7 +19,8 @@ import {
   Calculator,
   Plus,
   Minus,
-  ListOrdered
+  ListOrdered,
+  Pen
 } from 'lucide-react';
 import { avatarOnError, getAvatarUrl } from '../../utils/avatarHelper';
 
@@ -40,6 +41,29 @@ export const AddExpenseModal = ({
   const [amount, setAmount] = useState('');
   const [groupId, setGroupId] = useState(activeGroupId || (groups[0]?.id || ''));
   const [category, setCategory] = useState('food');
+  const [customCategory, setCustomCategory] = useState('');
+
+  // Auto-picks an emoji for custom categories based on keyword
+  const getCustomEmoji = (text) => {
+    const t = text.toLowerCase();
+    if (/coffee|cafe|tea|milk/.test(t)) return '☕';
+    if (/pizza|burger|food|meal|lunch|dinner|breakfast|eat|snack|resto|restaurant/.test(t)) return '🍽️';
+    if (/drink|beer|wine|juice|water/.test(t)) return '🥤';
+    if (/movie|cinema|film|show|concert|event|ticket/.test(t)) return '🎬';
+    if (/sport|gym|fitness|yoga|cricket|football|tennis|badminton/.test(t)) return '⚽';
+    if (/game|gaming|playstation|xbox/.test(t)) return '🎮';
+    if (/book|study|course|class|school|college|tuition/.test(t)) return '📚';
+    if (/gift|birthday|celebrate|party/.test(t)) return '🎁';
+    if (/medicine|doctor|hospital|health|medical|pharmacy/.test(t)) return '💊';
+    if (/pet|dog|cat|vet/.test(t)) return '🐾';
+    if (/trip|hotel|tour|holiday|vacation/.test(t)) return '🏖️';
+    if (/fuel|petrol|gas|car|bike|cab|auto|uber|ola/.test(t)) return '🚗';
+    if (/elect|power|internet|wifi|mobile|recharge|phone/.test(t)) return '📱';
+    if (/clean|laundry|house|flat|maintenance/.test(t)) return '🏠';
+    if (/cloth|shirt|dress|shoe|fashion|wear/.test(t)) return '👗';
+    if (/salon|haircut|spa|beauty|makeup/.test(t)) return '💇';
+    return '📌'; // default
+  };
   const [paidBy, setPaidBy] = useState(initialPayerId || currentUserId);
   const [splitType, setSplitType] = useState('equal'); // equal | exact | percentage | shares | itemized
   const [splits, setSplits] = useState({});
@@ -198,6 +222,8 @@ export const AddExpenseModal = ({
         amount: Math.round(itemTotal * 100) / 100,
         currency: currency || '$',
         category,
+        customLabel: category === 'custom' ? (customCategory.trim() || 'Custom') : undefined,
+        customEmoji: category === 'custom' ? getCustomEmoji(customCategory.trim()) : undefined,
         paidBy,
         splitType: 'exact', // store as exact so debt engine works without changes
         recipientIds: involvedIds,
@@ -212,6 +238,8 @@ export const AddExpenseModal = ({
         amount: parseFloat(amount),
         currency: currency || '$',
         category,
+        customLabel: category === 'custom' ? (customCategory.trim() || 'Custom') : undefined,
+        customEmoji: category === 'custom' ? getCustomEmoji(customCategory.trim()) : undefined,
         paidBy,
         splitType,
         recipientIds: currentRecipients,
@@ -336,8 +364,49 @@ export const AddExpenseModal = ({
                   </button>
                 );
               })}
+              {/* Custom pill */}
+              <button
+                type="button"
+                onClick={() => setCategory('custom')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 12px',
+                  borderRadius: '16px',
+                  background: category === 'custom' ? 'rgba(139,92,246,0.18)' : 'var(--bg-input)',
+                  border: category === 'custom' ? '2px solid #8b5cf6' : '1px solid var(--border-color)',
+                  color: category === 'custom' ? '#8b5cf6' : 'var(--text-secondary)',
+                  fontSize: '0.8rem',
+                  fontWeight: '700',
+                  whiteSpace: 'nowrap',
+                  cursor: 'pointer',
+                }}
+              >
+                <Pen size={14} />
+                <span>Custom</span>
+              </button>
             </div>
+
+            {/* Custom category input — visible only when Custom is selected */}
+            {category === 'custom' && (
+              <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '1.5rem', lineHeight: 1 }}>
+                  {customCategory.trim() ? getCustomEmoji(customCategory) : '📌'}
+                </span>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. Coffee, Gym, Movie Night..."
+                  value={customCategory}
+                  onChange={e => setCustomCategory(e.target.value)}
+                  style={{ flex: 1 }}
+                  autoFocus
+                />
+              </div>
+            )}
           </div>
+
 
           {/* Payer Selector */}
           <div className="form-group">

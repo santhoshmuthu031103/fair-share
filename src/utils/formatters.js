@@ -48,6 +48,15 @@ export const CATEGORIES = {
   general: { id: 'general', label: 'General / Other', color: '#b2bec3', iconName: 'Receipt' },
 };
 
-export const getCategoryMeta = (catId) => {
+export const getCategoryMeta = (catId, expense) => {
+  if (catId === 'custom' && expense) {
+    return {
+      id: 'custom',
+      label: expense.customLabel || 'Custom',
+      color: '#8b5cf6',
+      iconName: null,
+      customEmoji: expense.customEmoji || '📌',
+    };
+  }
   return CATEGORIES[catId] || CATEGORIES.general;
 };

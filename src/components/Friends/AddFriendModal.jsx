@@ -233,7 +233,7 @@ export const AddFriendModal = ({ onClose, onAddFriend }) => {
           </div>
 
           {/* Action Buttons */}
-          <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ marginTop: '16px' }}>
             <button
               type="submit"
               className="btn-primary"
@@ -241,43 +241,6 @@ export const AddFriendModal = ({ onClose, onAddFriend }) => {
             >
               <UserPlus size={16} /> {foundUser ? 'Add Verified Friend' : 'Add Friend'}
             </button>
-
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={handleWhatsAppInvite}
-                style={{
-                  flex: 1,
-                  height: '40px',
-                  gap: '6px',
-                  fontSize: '0.82rem',
-                  fontWeight: '700',
-                  color: '#25D366',
-                  borderColor: 'rgba(37, 211, 102, 0.35)',
-                  background: 'rgba(37, 211, 102, 0.08)',
-                  justifyContent: 'center',
-                }}
-              >
-                <MessageCircle size={15} /> WhatsApp Invite
-              </button>
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={handleCopyLink}
-                style={{
-                  flex: 1,
-                  height: '40px',
-                  gap: '6px',
-                  fontSize: '0.82rem',
-                  fontWeight: '700',
-                  justifyContent: 'center',
-                }}
-              >
-                {copied ? <Check size={15} color="var(--accent-mint)" /> : <Copy size={15} />}
-                {copied ? 'Link Copied!' : 'Copy Link'}
-              </button>
-            </div>
           </div>
         </form>
       </div>
