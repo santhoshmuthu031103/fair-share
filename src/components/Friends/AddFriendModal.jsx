@@ -93,12 +93,11 @@ export const AddFriendModal = ({ onClose, onAddFriend }) => {
   const handleInvite = () => {
     const friendPhone = phone.trim();
     const inviteText = [
-      '👋 Hey! I use FairShare to split and track shared expenses — it\'s super easy!',
+      '👋 Hey! I use FairShare to split and track our shared expenses — it\'s super easy!',
       '',
-      '📲 Download the app here:',
-      APP_DOWNLOAD_URL,
-      '',
-      '✨ Once installed, register with your mobile number' + (friendPhone ? ` (${friendPhone})` : '') + ' and we\'ll link up automatically!',
+      friendPhone
+        ? `✨ Download the app, register with your number (${friendPhone}) and we'll link up automatically!`
+        : '✨ Download the app and register with your mobile number — we\'ll link up automatically!',
     ].join('\n');
 
     if (navigator.share) {
@@ -108,11 +107,10 @@ export const AddFriendModal = ({ onClose, onAddFriend }) => {
         url: APP_RELEASES_URL,
       }).catch(() => {});
     } else {
-      navigator.clipboard.writeText(inviteText).then(() => {
-        alert('✅ Invite message copied! Send it to your friend on WhatsApp or SMS.');
-      }).catch(() => {
-        alert('✅ Share link:\n' + APP_DOWNLOAD_URL);
-      });
+      const fullMsg = inviteText + '\n\n' + APP_RELEASES_URL;
+      navigator.clipboard.writeText(fullMsg)
+        .then(() => alert('✅ Invite copied! Send it to your friend on WhatsApp or SMS.'))
+        .catch(() => {});
     }
   };
 

@@ -68,10 +68,30 @@ export function App() {
     const timer = setTimeout(async () => {
       const info = await checkForAppUpdate();
       if (info && info.hasUpdate) {
-        // Show update notification toast
+        // Show in-app toast
         showToast(`🚀 New Update Available (v${info.latestVersion})! Tap to update.`, 'info');
 
-        // Check if user dismissed this specific release version in this session
+        // Fire a real phone notification via Web Notifications API
+        // (works in Capacitor WebView on Android — no extra Java required)
+        try {
+          if ('Notification' in window) {
+            const perm = Notification.permission === 'granted'
+              ? 'granted'
+              : await Notification.requestPermission();
+            if (perm === 'granted') {
+              new Notification('🚀 FairShare Update Available!', {
+                body: `Version ${info.latestVersion} is ready. Open the app to update now.`,
+                icon: '/app-logo.png',
+                tag: `fairshare-update-${info.latestVersion}`,
+                renotify: false,
+              });
+            }
+          }
+        } catch (_) {
+          // Web Notifications not available — safe to ignore
+        }
+
+        // Show update modal (unless user dismissed this version)
         const dismissed = sessionStorage.getItem(`dismissed_update_${info.latestVersion}`);
         if (!dismissed) {
           setAppUpdateInfo(info);

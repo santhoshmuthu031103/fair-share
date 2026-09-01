@@ -342,17 +342,15 @@ export const ProfileModal = ({ currentUser, onClose, onUpdateProfile, onLogout, 
             type="button"
             onClick={() => {
               const inviteText = [
-                '👋 Hey! I use FairShare to split and track shared expenses — it\'s super easy!',
+                '👋 Hey! I use FairShare to split and track our shared expenses — it\'s super easy!',
                 '',
-                '📲 Download the app here:',
-                APP_DOWNLOAD_URL,
-                '',
-                '✨ Register with your mobile number and we\'ll split expenses together!',
+                '✨ Download the app and register with your mobile number — we\'ll link up automatically!',
               ].join('\n');
               if (navigator.share) {
                 navigator.share({ title: 'Join me on FairShare! 💸', text: inviteText, url: APP_RELEASES_URL }).catch(() => {});
               } else {
-                navigator.clipboard.writeText(inviteText).then(() => alert('✅ Invite copied! Send it to your friends on WhatsApp or SMS.')).catch(() => {});
+                navigator.clipboard.writeText(inviteText + '\n\n' + APP_RELEASES_URL)
+                  .then(() => alert('✅ Invite copied! Send it to your friends on WhatsApp or SMS.')).catch(() => {});
               }
             }}
             className="btn-secondary"
