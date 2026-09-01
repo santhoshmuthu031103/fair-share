@@ -1,7 +1,6 @@
 /**
  * updateChecker.js
- * Automatically checks GitHub Releases for new APK versions
- * and prompts the user to download and update.
+ * Automatically checks for new FairShare APK versions via GitHub Releases
  */
 
 export const CURRENT_APP_VERSION = '1.1.0';
@@ -9,15 +8,17 @@ const GITHUB_REPO = 'santhoshmuthu031103/fair-share';
 const GITHUB_LATEST_RELEASE_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
 
 /**
- * Compare two semver version strings like '1.0.1' and '1.0.0'
+ * Compare two semver version strings like '1.2.0' and '1.1.0'
  * Returns true if newVer is strictly greater than currentVer
  */
 export const isNewerVersion = (newVer, currentVer) => {
   if (!newVer || !currentVer) return false;
 
-  // Clean strings (remove leading 'v' or 'V' and whitespace)
   const cleanNew = String(newVer).replace(/^v/i, '').trim();
   const cleanCur = String(currentVer).replace(/^v/i, '').trim();
+
+  // If versions are identical, definitely no update
+  if (cleanNew === cleanCur) return false;
 
   const newParts = cleanNew.split('.').map(p => parseInt(p, 10) || 0);
   const curParts = cleanCur.split('.').map(p => parseInt(p, 10) || 0);
@@ -33,12 +34,12 @@ export const isNewerVersion = (newVer, currentVer) => {
 };
 
 /**
- * Checks GitHub Releases API for the latest version
+ * Checks GitHub Releases API for the latest published version
  */
 export const checkForAppUpdate = async () => {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
 
     const res = await fetch(GITHUB_LATEST_RELEASE_URL, {
       signal: controller.signal,
@@ -48,16 +49,24 @@ export const checkForAppUpdate = async () => {
     });
     clearTimeout(timeoutId);
 
+    // If no release exists yet (404) or network error, return no update
     if (!res.ok) {
-      return { hasUpdate: false, error: `GitHub response status: ${res.status}` };
+      return { hasUpdate: false, currentVersion: CURRENT_APP_VERSION };
     }
 
     const data = await res.json();
     const releaseTag = data.tag_name || '';
     const latestVersion = releaseTag.replace(/^v/i, '');
 
-    // Look for attached .apk asset in release
-    let downloadUrl = data.html_url; // fallback to release page
+    // Check if published release is strictly newer than current app version
+    const hasUpdate = isNewerVersion(latestVersion, CURRENT_APP_VERSION);
+
+    if (!hasUpdate) {
+      return { hasUpdate: false, currentVersion: CURRENT_APP_VERSION, latestVersion };
+    }
+
+    // Find direct APK download url
+    let downloadUrl = data.html_url;
     if (Array.isArray(data.assets) && data.assets.length > 0) {
       const apkAsset = data.assets.find(a => a.name && a.name.toLowerCase().endsWith('.apk'));
       if (apkAsset && apkAsset.browser_download_url) {
@@ -65,20 +74,17 @@ export const checkForAppUpdate = async () => {
       }
     }
 
-    const hasUpdate = isNewerVersion(latestVersion, CURRENT_APP_VERSION);
-
     return {
-      hasUpdate,
+      hasUpdate: true,
       currentVersion: CURRENT_APP_VERSION,
       latestVersion,
       releaseTag,
-      releaseName: data.name || `Version ${latestVersion}`,
+      releaseName: data.name || `FairShare v${latestVersion}`,
       releaseNotes: data.body || 'Performance improvements and bug fixes.',
       downloadUrl,
-      publishedAt: data.published_at,
     };
   } catch (err) {
     console.warn('Update check error (safe to ignore if offline):', err);
-    return { hasUpdate: false, error: err.message };
+    return { hasUpdate: false, currentVersion: CURRENT_APP_VERSION };
   }
 };
