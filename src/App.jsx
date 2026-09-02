@@ -1084,8 +1084,8 @@ export function App() {
   };
 
   // Group selection with history push for back button
-  const handleSelectGroup = (grp) => {
-    setSelectedGroup(grp);
+  const handleSelectGroup = (grp, initialView = null) => {
+    setSelectedGroup(initialView ? { ...grp, initialView } : grp);
     window.history.pushState({ inGroup: true }, '');
   };
 
@@ -1201,7 +1201,7 @@ export function App() {
       <main className="mobile-screen-content">
         {selectedGroup && groups.find(g => g.id === selectedGroup.id) ? (
           <GroupDetail
-            group={groups.find(g => g.id === selectedGroup.id)}
+            group={{ ...groups.find(g => g.id === selectedGroup.id), initialView: selectedGroup.initialView }}
             expenses={expenses}
             settlements={settlements}
             friends={friends}

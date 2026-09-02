@@ -80,6 +80,7 @@ export const GroupList = ({
                 netBalance={userBalance}
                 currency={currency}
                 onClick={() => onSelectGroup(group)}
+                onOpenChat={(grp) => onSelectGroup(grp, 'chat')}
               />
             );
           })

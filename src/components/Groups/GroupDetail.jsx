@@ -44,7 +44,7 @@ export const GroupDetail = ({
   onRemoveMemberFromGroup,
   onDeleteExpense 
 }) => {
-  const [activeTab, setActiveTab] = useState('expenses'); // 'expenses' | 'chat'
+  const [isChatModalOpen, setIsChatModalOpen] = useState(group?.initialView === 'chat');
   const [selectedExpense, setSelectedExpense] = useState(null);
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
   const [selectedNewMemberIds, setSelectedNewMemberIds] = useState([]);
@@ -166,6 +166,28 @@ export const GroupDetail = ({
             >
               ⚡ Live Sync Code: {group.syncCode || group.id.slice(-6).toUpperCase()}
             </span>
+
+            <button
+              type="button"
+              onClick={() => setIsChatModalOpen(true)}
+              style={{
+                fontSize: '0.72rem',
+                background: 'rgba(16, 185, 129, 0.3)',
+                color: '#ffffff',
+                padding: '3px 10px',
+                borderRadius: '10px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                border: '1px solid rgba(16, 185, 129, 0.5)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
+              }}
+            >
+              <MessageSquare size={13} color="#10b981" />
+              <span>Chat</span>
+            </button>
           </div>
           <h1 style={{ color: '#fff', fontSize: '1.4rem', fontWeight: '800' }}>
             {group.name}
@@ -251,80 +273,8 @@ export const GroupDetail = ({
           </button>
         </div>
 
-        {/* Tab Switcher: Expenses vs Chat */}
-        <div 
-          style={{ 
-            display: 'flex', 
-            background: 'var(--bg-input)', 
-            padding: '4px', 
-            borderRadius: '16px', 
-            border: '1px solid var(--border-color)',
-            marginBottom: '14px',
-            gap: '4px'
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => setActiveTab('expenses')}
-            style={{
-              flex: 1,
-              padding: '9px 14px',
-              borderRadius: '12px',
-              border: 'none',
-              background: activeTab === 'expenses' ? 'var(--bg-card)' : 'transparent',
-              color: activeTab === 'expenses' ? 'var(--accent-mint)' : 'var(--text-secondary)',
-              fontWeight: activeTab === 'expenses' ? '800' : '600',
-              fontSize: '0.85rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              boxShadow: activeTab === 'expenses' ? '0 2px 8px rgba(0,0,0,0.2)' : 'none',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <Receipt size={15} />
-            <span>Expenses & Balances</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('chat')}
-            style={{
-              flex: 1,
-              padding: '9px 14px',
-              borderRadius: '12px',
-              border: 'none',
-              background: activeTab === 'chat' ? 'var(--bg-card)' : 'transparent',
-              color: activeTab === 'chat' ? 'var(--accent-mint)' : 'var(--text-secondary)',
-              fontWeight: activeTab === 'chat' ? '800' : '600',
-              fontSize: '0.85rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              boxShadow: activeTab === 'chat' ? '0 2px 8px rgba(0,0,0,0.2)' : 'none',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <MessageSquare size={15} />
-            <span>Group Chat</span>
-          </button>
-        </div>
-
-        {activeTab === 'chat' ? (
-          <GroupChat 
-            group={group} 
-            currentUser={currentUser} 
-            friends={friends} 
-            onOpenSettleUp={() => onOpenSettleUp(group.id)} 
-          />
-        ) : (
-          <>
-            {/* Who Owes Who Card */}
-            <div className="card" style={{ marginBottom: '16px', background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+        {/* Who Owes Who Card */}
+        <div className="card" style={{ marginBottom: '16px', background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ color: 'var(--accent-amber)', fontSize: '1.1rem' }}>⚖️</span>
@@ -503,8 +453,6 @@ export const GroupDetail = ({
             })
           )}
         </div>
-        </>
-        )}
       </div>
 
       {/* Add Member Bottom Sheet Modal */}
@@ -666,6 +614,90 @@ export const GroupDetail = ({
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Floating Chat Button (Option 3 FAB) */}
+      <button
+        type="button"
+        onClick={() => setIsChatModalOpen(true)}
+        style={{
+          position: 'fixed',
+          bottom: '82px',
+          right: '20px',
+          width: '52px',
+          height: '52px',
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+          color: '#ffffff',
+          border: 'none',
+          boxShadow: '0 8px 24px rgba(16, 185, 129, 0.45)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          zIndex: 45,
+          transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+        }}
+        title={`Chat in ${group.name}`}
+      >
+        <MessageSquare size={22} />
+      </button>
+
+      {/* Group Chat Bottom Sheet Modal */}
+      {isChatModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsChatModalOpen(false)}>
+          <div 
+            className="bottom-sheet" 
+            onClick={(e) => e.stopPropagation()}
+            style={{ 
+              maxHeight: '86vh', 
+              height: '86vh', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              padding: '16px 16px 10px 16px' 
+            }}
+          >
+            <div className="sheet-handle" />
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ 
+                  background: 'var(--accent-mint-glow)', 
+                  color: 'var(--accent-mint)', 
+                  padding: '6px', 
+                  borderRadius: '8px', 
+                  display: 'flex' 
+                }}>
+                  <MessageSquare size={18} />
+                </span>
+                <div>
+                  <h2 style={{ fontSize: '1.15rem', fontWeight: '800', margin: 0 }}>{group.name} Chat</h2>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Real-time discussion & settlement reminders</span>
+                </div>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setIsChatModalOpen(false)} 
+                className="icon-btn"
+                style={{ background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: '50%', cursor: 'pointer', padding: '6px' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <GroupChat 
+                group={group} 
+                currentUser={currentUser} 
+                friends={friends} 
+                onOpenSettleUp={() => {
+                  setIsChatModalOpen(false);
+                  onOpenSettleUp(group.id);
+                }} 
+              />
+            </div>
           </div>
         </div>
       )}

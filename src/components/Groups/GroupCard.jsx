@@ -1,9 +1,9 @@
 import React from 'react';
 import { formatCurrency } from '../../utils/formatters';
-import { Users, ChevronRight } from 'lucide-react';
+import { Users, ChevronRight, MessageSquare } from 'lucide-react';
 import { avatarOnError, getAvatarUrl } from '../../utils/avatarHelper';
 
-export const GroupCard = ({ group, friends = [], netBalance, balance, currency, onClick }) => {
+export const GroupCard = ({ group, friends = [], netBalance, balance, currency, onClick, onOpenChat }) => {
   const actualBalance = netBalance !== undefined ? netBalance : (balance || 0);
   const memberObjList = (group.members || [])
     .map(mId => (friends || []).find(f => f.id === mId))
@@ -104,8 +104,36 @@ export const GroupCard = ({ group, friends = [], netBalance, balance, currency, 
           </span>
         </div>
 
-        <div style={{ textAlign: 'right', fontSize: '0.85rem' }}>
-          {getBalanceText()}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ textAlign: 'right', fontSize: '0.85rem' }}>
+            {getBalanceText()}
+          </div>
+          {onOpenChat && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenChat(group);
+              }}
+              style={{
+                width: '34px',
+                height: '34px',
+                borderRadius: '50%',
+                background: 'var(--accent-mint-glow)',
+                border: '1px solid rgba(16, 185, 129, 0.4)',
+                color: 'var(--accent-mint)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                flexShrink: 0
+              }}
+              title={`Chat in ${group.name}`}
+            >
+              <MessageSquare size={16} />
+            </button>
+          )}
         </div>
       </div>
     </div>
