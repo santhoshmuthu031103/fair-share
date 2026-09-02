@@ -8,7 +8,8 @@ import {
   MessageSquare,
   DollarSign,
   Receipt,
-  CheckCheck
+  CheckCheck,
+  X
 } from 'lucide-react';
 import { 
   sendGroupChatMessage, 
@@ -20,7 +21,7 @@ import { avatarOnError, getAvatarUrl } from '../../utils/avatarHelper';
 
 const QUICK_REACTIONS = ['👍', '❤️', '💸', '🧾', '🔥'];
 
-export const GroupChat = ({ group, currentUser, friends, onOpenSettleUp }) => {
+export const GroupChat = ({ group, currentUser, friends, onOpenSettleUp, onClose, someoneOwesMe }) => {
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -107,68 +108,105 @@ export const GroupChat = ({ group, currentUser, friends, onOpenSettleUp }) => {
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      height: '620px',
-      maxHeight: '75vh',
+      height: '100%',
+      width: '100%',
       background: 'var(--bg-card)',
-      borderRadius: '18px',
-      border: '1px solid var(--border-color)',
-      boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
-      overflow: 'hidden',
-      marginTop: '12px'
+      overflow: 'hidden'
     }}>
-      {/* Chat Sub-Header Banner */}
+      {/* Clean Single Header (WhatsApp / Telegram style) */}
       <div style={{
         padding: '12px 16px',
         borderBottom: '1px solid var(--border-color)',
         background: 'rgba(255,255,255,0.02)',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between'
+        justifyContent: 'space-between',
+        flexShrink: 0
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{
-            background: 'var(--accent-mint-glow)',
-            color: 'var(--accent-mint)',
-            padding: '6px',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <MessageSquare size={16} />
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {group?.coverImage ? (
+            <img 
+              src={group.coverImage} 
+              alt={group.name} 
+              style={{ width: '38px', height: '38px', borderRadius: '10px', objectFit: 'cover' }} 
+            />
+          ) : (
+            <div style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '10px',
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              color: '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: '800',
+              fontSize: '1rem'
+            }}>
+              {group?.name?.charAt(0)?.toUpperCase() || 'G'}
+            </div>
+          )}
           <div>
-            <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: '700' }}>Group Discussion</h4>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-              Live real-time sync with all group members
+            <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '800', color: 'var(--text-primary)' }}>
+              {group?.name || 'Group'}
+            </h3>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+              {group?.members?.length || friends?.length || 0} members
             </span>
           </div>
         </div>
 
-        {/* Quick Nudge Button */}
-        <button
-          type="button"
-          onClick={handleSendNudge}
-          disabled={isSending}
-          title="Send a polite reminder to settle balances"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: 'rgba(245, 158, 11, 0.15)',
-            border: '1px solid rgba(245, 158, 11, 0.35)',
-            color: 'var(--accent-amber)',
-            padding: '6px 12px',
-            borderRadius: '16px',
-            fontSize: '0.75rem',
-            fontWeight: '700',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease'
-          }}
-        >
-          <BellRing size={13} />
-          <span>Nudge to Settle</span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Quick Nudge Button — ONLY shown if someone owes the user money */}
+          {someoneOwesMe && (
+            <button
+              type="button"
+              onClick={handleSendNudge}
+              disabled={isSending}
+              title="Send a polite reminder to settle balances"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                background: 'rgba(245, 158, 11, 0.15)',
+                border: '1px solid rgba(245, 158, 11, 0.35)',
+                color: 'var(--accent-amber)',
+                padding: '6px 11px',
+                borderRadius: '14px',
+                fontSize: '0.74rem',
+                fontWeight: '700',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <BellRing size={13} />
+              <span>Nudge to Settle</span>
+            </button>
+          )}
+
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="icon-btn"
+              style={{
+                background: 'rgba(255,255,255,0.06)',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: 'var(--text-secondary)'
+              }}
+              title="Close Chat"
+            >
+              <X size={18} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Messages Stream */}
@@ -256,7 +294,7 @@ export const GroupChat = ({ group, currentUser, friends, onOpenSettleUp }) => {
                         {msg.text}
                       </div>
                     </div>
-                    {onOpenSettleUp && (
+                    {!isMe && onOpenSettleUp && (
                       <button
                         type="button"
                         onClick={onOpenSettleUp}

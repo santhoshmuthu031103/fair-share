@@ -63,6 +63,7 @@ export const GroupDetail = ({
   const netBalances = ledger.groups[group.id]?.netBalances || {};
   const transactionsToDisplay = ledger.groups[group.id]?.pairwiseDebts || [];
   const myDebtsInGroup = transactionsToDisplay.filter(tx => tx.from === currentUserId);
+  const someoneOwesMe = transactionsToDisplay.some(tx => tx.to === currentUserId && tx.amount > 0.01);
 
   // Group Total Expense Spend
   const totalGroupSpend = groupExps.reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0);
@@ -652,46 +653,23 @@ export const GroupDetail = ({
             className="bottom-sheet" 
             onClick={(e) => e.stopPropagation()}
             style={{ 
-              maxHeight: '86vh', 
-              height: '86vh', 
+              maxHeight: '88vh', 
+              height: '88vh', 
               display: 'flex', 
               flexDirection: 'column', 
-              padding: '16px 16px 10px 16px' 
+              padding: 0,
+              overflow: 'hidden'
             }}
           >
-            <div className="sheet-handle" />
+            <div className="sheet-handle" style={{ marginTop: '8px', marginBottom: '2px' }} />
             
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ 
-                  background: 'var(--accent-mint-glow)', 
-                  color: 'var(--accent-mint)', 
-                  padding: '6px', 
-                  borderRadius: '8px', 
-                  display: 'flex' 
-                }}>
-                  <MessageSquare size={18} />
-                </span>
-                <div>
-                  <h2 style={{ fontSize: '1.15rem', fontWeight: '800', margin: 0 }}>{group.name} Chat</h2>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Real-time discussion & settlement reminders</span>
-                </div>
-              </div>
-              <button 
-                type="button" 
-                onClick={() => setIsChatModalOpen(false)} 
-                className="icon-btn"
-                style={{ background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: '50%', cursor: 'pointer', padding: '6px' }}
-              >
-                <X size={18} />
-              </button>
-            </div>
-
             <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
               <GroupChat 
                 group={group} 
                 currentUser={currentUser} 
                 friends={friends} 
+                someoneOwesMe={someoneOwesMe}
+                onClose={() => setIsChatModalOpen(false)}
                 onOpenSettleUp={() => {
                   setIsChatModalOpen(false);
                   onOpenSettleUp(group.id);
