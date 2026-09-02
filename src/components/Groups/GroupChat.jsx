@@ -15,7 +15,8 @@ import {
   sendGroupChatMessage, 
   subscribeGroupChat, 
   toggleChatMessageReaction, 
-  deleteGroupChatMessage 
+  deleteGroupChatMessage,
+  triggerNotification
 } from '../../utils/firebaseSync';
 import { avatarOnError, getAvatarUrl } from '../../utils/avatarHelper';
 
@@ -62,6 +63,20 @@ export const GroupChat = ({ group, currentUser, friends, onOpenSettleUp, onClose
       });
       setInputText('');
       if (inputRef.current) inputRef.current.focus();
+
+      // Trigger Firebase push notification to other group members
+      const otherMemberIds = (group?.members || []).filter(id => id !== currentUserId);
+      if (otherMemberIds.length > 0) {
+        triggerNotification({
+          action: 'chat_message',
+          senderName: currentUser?.name || 'Someone',
+          senderId: currentUserId,
+          groupName: group?.name || 'Group',
+          customTitle: `💬 ${group?.name || 'Group'} • ${currentUser?.name || 'Someone'}`,
+          customBody: text.length > 100 ? text.slice(0, 97) + '...' : text,
+          memberIds: otherMemberIds,
+        });
+      }
     } catch (err) {
       console.warn('Failed to send message:', err);
     } finally {
@@ -80,6 +95,20 @@ export const GroupChat = ({ group, currentUser, friends, onOpenSettleUp, onClose
         text: `Friendly reminder to check your balances and settle up!`,
         type: 'nudge',
       });
+
+      // Trigger Firebase push notification to other members
+      const otherMemberIds = (group?.members || []).filter(id => id !== currentUserId);
+      if (otherMemberIds.length > 0) {
+        triggerNotification({
+          action: 'nudge_settle',
+          senderName: currentUser?.name || 'Someone',
+          senderId: currentUserId,
+          groupName: group?.name || 'Group',
+          customTitle: `🔔 Settlement Reminder • ${group?.name || 'Group'}`,
+          customBody: `${currentUser?.name || 'Someone'} sent a reminder to check balances and settle up!`,
+          memberIds: otherMemberIds,
+        });
+      }
     } catch (err) {
       console.warn('Failed to send nudge:', err);
     } finally {
