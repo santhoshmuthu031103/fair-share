@@ -91,14 +91,9 @@ export const checkForAppUpdate = async () => {
       return { hasUpdate: false, currentVersion: installedVersion, latestVersion };
     }
 
-    // Find direct APK download url
-    let downloadUrl = 'https://github.com/santhoshmuthu031103/fair-share/raw/master/FairShare-latest.apk';
-    if (Array.isArray(data.assets) && data.assets.length > 0) {
-      const apkAsset = data.assets.find(a => a.name && a.name.toLowerCase().endsWith('.apk'));
-      if (apkAsset && apkAsset.browser_download_url) {
-        downloadUrl = apkAsset.browser_download_url;
-      }
-    }
+    // ALWAYS use the raw file URL from master branch — this serves the binary directly
+    // without any GitHub web page, so Chrome downloads only ONE file, no release list shown
+    const downloadUrl = 'https://github.com/santhoshmuthu031103/fair-share/raw/master/FairShare-latest.apk';
 
     return {
       hasUpdate: true,
