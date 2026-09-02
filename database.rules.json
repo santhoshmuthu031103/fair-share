@@ -11,7 +11,7 @@
     },
     "fcm_tokens": {
       "$userId": {
-        ".read": "auth != null",
+        ".read": true,
         ".write": "auth != null"
       }
     },

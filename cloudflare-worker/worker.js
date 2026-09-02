@@ -79,26 +79,37 @@ export default {
     } else if (action === 'settlement_deleted') {
       title = `🗑️ ${groupName}`;
       notifBody = `${senderName} deleted a settlement`;
+    } else if (action === 'chat_message') {
+      title = customTitle || `💬 ${groupName}`;
+      notifBody = customBody || `${senderName}: sent a message`;
+    } else if (action === 'nudge_settle') {
+      title = customTitle || `🔔 ${groupName}`;
+      notifBody = customBody || `${senderName} reminded everyone to settle balances!`;
     } else {
       title = `🔔 ${groupName}`;
       notifBody = `${senderName} made an update in ${groupName}`;
     }
 
-    // Fetch member FCM tokens from Firebase Realtime DB
-    const dbUrl = env.FIREBASE_DB_URL;
-    const tokenFetches = memberIds.map(async (uid) => {
-      try {
-        const res = await fetch(`${dbUrl}/fcm_tokens/${uid}.json`);
-        if (!res.ok) return null;
-        const data = await res.json();
-        return data?.token || null;
-      } catch {
-        return null;
-      }
-    });
+    // Use tokens directly provided by client if available
+    let tokens = Array.isArray(body.tokens) ? body.tokens.filter(Boolean) : [];
 
-    const rawTokens = await Promise.all(tokenFetches);
-    const tokens = rawTokens.filter(Boolean);
+    // Otherwise fetch member FCM tokens from Firebase Realtime DB
+    if (tokens.length === 0) {
+      const dbUrl = env.FIREBASE_DB_URL;
+      const tokenFetches = memberIds.map(async (uid) => {
+        try {
+          const res = await fetch(`${dbUrl}/fcm_tokens/${uid}.json`);
+          if (!res.ok) return null;
+          const data = await res.json();
+          return data?.token || null;
+        } catch {
+          return null;
+        }
+      });
+
+      const rawTokens = await Promise.all(tokenFetches);
+      tokens = rawTokens.filter(Boolean);
+    }
 
     if (tokens.length === 0) {
       return corsResponse({ ok: true, message: 'No FCM tokens found for members' });
@@ -131,12 +142,16 @@ export default {
               priority: 'HIGH',
               notification: {
                 sound: 'default',
-                channel_id: 'fairshare_notifications',
+                channel_id: 'fairshare_messages_channel',
+                default_sound: true,
+                default_vibrate_timings: true,
               },
             },
             data: {
               action: action || '',
               groupName: groupName || '',
+              title: title || '',
+              body: notifBody || '',
             },
           },
         };

@@ -98,9 +98,9 @@ export function App() {
   }, [isDarkMode]);
 
   // ─── FCM Push Notification Setup ────────────────────────────────────────────
-  // Runs once after login to register device token and listen for foreground messages
+  // Registers device push token and listens for messages
   useEffect(() => {
-    if (!isLoggedIn || !currentUser?.id || fcmInitialized.current) return;
+    if (!currentUser?.id || fcmInitialized.current) return;
 
     const initFCM = async () => {
       try {

@@ -523,10 +523,20 @@ export const triggerNotification = async (payload) => {
   }
 
   try {
+    // 🚀 Directly retrieve member FCM tokens using authenticated Firebase client
+    let directTokens = [];
+    if (Array.isArray(payload.memberIds) && payload.memberIds.length > 0) {
+      directTokens = await getGroupMemberFCMTokens(payload.memberIds);
+    }
+
     await fetch(workerUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...payload, secret: notifySecret }),
+      body: JSON.stringify({ 
+        ...payload, 
+        tokens: directTokens, 
+        secret: notifySecret 
+      }),
     });
   } catch (err) {
     // Non-critical — notification failure should never break the main app flow

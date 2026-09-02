@@ -22,7 +22,7 @@
 
         <!-- FCM Service for background push notifications -->
         <service
-            android:name="com.google.firebase.messaging.FirebaseMessagingService"
+            android:name=".FairShareFirebaseMessagingService"
             android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
