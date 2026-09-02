@@ -8,6 +8,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(NativeEmailPlugin.class);
+        registerPlugin(NativeUpdatePlugin.class);
         super.onCreate(savedInstanceState);
 
         // Request Notification permission on Android 13+ (API 33+)
