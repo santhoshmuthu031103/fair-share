@@ -13,21 +13,20 @@ export const UpdateModal = ({ updateInfo, onClose }) => {
     onClose();
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     setIsDownloading(true);
     try {
       localStorage.setItem(`dismissed_update_${updateInfo.latestVersion}`, Date.now().toString());
     } catch (_) {}
     if (updateInfo.downloadUrl) {
-      // Direct APK download — create a hidden link and click it to trigger
-      // the Android download manager, instead of opening a browser page
-      const a = document.createElement('a');
-      a.href = updateInfo.downloadUrl;
-      a.download = `FairShare-v${updateInfo.latestVersion}.apk`;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      try {
+        // Use Capacitor Browser plugin (Chrome Custom Tab) for reliable APK download
+        const { Browser } = await import('@capacitor/browser');
+        await Browser.open({ url: updateInfo.downloadUrl, windowName: '_system' });
+      } catch (_) {
+        // Fallback for web/dev mode
+        window.open(updateInfo.downloadUrl, '_blank');
+      }
     }
     setTimeout(() => {
       setIsDownloading(false);
