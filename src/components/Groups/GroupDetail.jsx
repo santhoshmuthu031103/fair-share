@@ -19,9 +19,11 @@ import {
   UserPlus,
   LogOut,
   X,
-  Check
+  Check,
+  MessageSquare
 } from 'lucide-react';
 import { avatarOnError, getAvatarUrl } from '../../utils/avatarHelper';
+import { GroupChat } from './GroupChat';
 
 const ICON_MAP = { Utensils, ShoppingBag, Home, Zap, Plane, Film, Tag, Receipt };
 
@@ -42,6 +44,7 @@ export const GroupDetail = ({
   onRemoveMemberFromGroup,
   onDeleteExpense 
 }) => {
+  const [activeTab, setActiveTab] = useState('expenses'); // 'expenses' | 'chat'
   const [selectedExpense, setSelectedExpense] = useState(null);
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
   const [selectedNewMemberIds, setSelectedNewMemberIds] = useState([]);
@@ -248,8 +251,80 @@ export const GroupDetail = ({
           </button>
         </div>
 
-        {/* Who Owes Who Card */}
-        <div className="card" style={{ marginBottom: '16px', background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+        {/* Tab Switcher: Expenses vs Chat */}
+        <div 
+          style={{ 
+            display: 'flex', 
+            background: 'var(--bg-input)', 
+            padding: '4px', 
+            borderRadius: '16px', 
+            border: '1px solid var(--border-color)',
+            marginBottom: '14px',
+            gap: '4px'
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setActiveTab('expenses')}
+            style={{
+              flex: 1,
+              padding: '9px 14px',
+              borderRadius: '12px',
+              border: 'none',
+              background: activeTab === 'expenses' ? 'var(--bg-card)' : 'transparent',
+              color: activeTab === 'expenses' ? 'var(--accent-mint)' : 'var(--text-secondary)',
+              fontWeight: activeTab === 'expenses' ? '800' : '600',
+              fontSize: '0.85rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              boxShadow: activeTab === 'expenses' ? '0 2px 8px rgba(0,0,0,0.2)' : 'none',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <Receipt size={15} />
+            <span>Expenses & Balances</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('chat')}
+            style={{
+              flex: 1,
+              padding: '9px 14px',
+              borderRadius: '12px',
+              border: 'none',
+              background: activeTab === 'chat' ? 'var(--bg-card)' : 'transparent',
+              color: activeTab === 'chat' ? 'var(--accent-mint)' : 'var(--text-secondary)',
+              fontWeight: activeTab === 'chat' ? '800' : '600',
+              fontSize: '0.85rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              boxShadow: activeTab === 'chat' ? '0 2px 8px rgba(0,0,0,0.2)' : 'none',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <MessageSquare size={15} />
+            <span>Group Chat</span>
+          </button>
+        </div>
+
+        {activeTab === 'chat' ? (
+          <GroupChat 
+            group={group} 
+            currentUser={currentUser} 
+            friends={friends} 
+            onOpenSettleUp={() => onOpenSettleUp(group.id)} 
+          />
+        ) : (
+          <>
+            {/* Who Owes Who Card */}
+            <div className="card" style={{ marginBottom: '16px', background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ color: 'var(--accent-amber)', fontSize: '1.1rem' }}>⚖️</span>
@@ -428,6 +503,8 @@ export const GroupDetail = ({
             })
           )}
         </div>
+        </>
+        )}
       </div>
 
       {/* Add Member Bottom Sheet Modal */}

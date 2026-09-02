@@ -51,6 +51,12 @@
         ".read": "auth != null",
         ".write": "auth != null"
       }
+    },
+    "group_chats": {
+      "$syncCode": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
     }
   }
 }

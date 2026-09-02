@@ -534,3 +534,106 @@ export const triggerNotification = async (payload) => {
   }
 };
 
+/**
+ * ─────────────────────────────────────────────────────────────
+ * GROUP CHAT REAL-TIME ENGINE
+ * ─────────────────────────────────────────────────────────────
+ */
+
+/**
+ * Send a chat message or nudge to a group in real-time
+ */
+export const sendGroupChatMessage = async (syncCode, message) => {
+  if (!db || !syncCode) return null;
+  const cleanCode = syncCode.toUpperCase().trim();
+  const messagesRef = ref(db, `group_chats/${cleanCode}/messages`);
+  const newMsgRef = push(messagesRef);
+
+  const payload = {
+    id: newMsgRef.key,
+    senderId: message.senderId || 'anon',
+    senderName: message.senderName || 'Anonymous',
+    senderAvatar: message.senderAvatar || null,
+    text: message.text || '',
+    type: message.type || 'text', // 'text' | 'nudge' | 'expense_alert'
+    timestamp: Date.now(),
+    reactions: {},
+    meta: message.meta || null, // e.g. amount, expenseId
+  };
+
+  try {
+    await set(newMsgRef, payload);
+    return payload;
+  } catch (err) {
+    console.error('sendGroupChatMessage error:', err);
+    throw err;
+  }
+};
+
+/**
+ * Subscribe to real-time chat messages for a group
+ * Returns an unsubscribe function.
+ */
+export const subscribeGroupChat = (syncCode, onUpdate) => {
+  if (!db || !syncCode) return () => {};
+  const cleanCode = syncCode.toUpperCase().trim();
+  const chatRef = ref(db, `group_chats/${cleanCode}/messages`);
+
+  const unsubscribe = onValue(
+    chatRef,
+    (snapshot) => {
+      if (!snapshot.exists()) {
+        onUpdate([]);
+        return;
+      }
+      const data = snapshot.val();
+      const messageList = Object.values(data).sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+      onUpdate(messageList);
+    },
+    (err) => {
+      console.warn('subscribeGroupChat error:', err);
+    }
+  );
+
+  return () => {
+    try {
+      unsubscribe();
+    } catch (_) {}
+  };
+};
+
+/**
+ * Toggle an emoji reaction on a message
+ */
+export const toggleChatMessageReaction = async (syncCode, messageId, emoji, userId) => {
+  if (!db || !syncCode || !messageId || !emoji || !userId) return;
+  const cleanCode = syncCode.toUpperCase().trim();
+  const reactionRef = ref(db, `group_chats/${cleanCode}/messages/${messageId}/reactions/${emoji}/${userId}`);
+
+  try {
+    const snap = await get(reactionRef);
+    if (snap.exists()) {
+      await remove(reactionRef);
+    } else {
+      await set(reactionRef, true);
+    }
+  } catch (err) {
+    console.warn('toggleChatMessageReaction error:', err);
+  }
+};
+
+/**
+ * Delete a chat message
+ */
+export const deleteGroupChatMessage = async (syncCode, messageId) => {
+  if (!db || !syncCode || !messageId) return;
+  const cleanCode = syncCode.toUpperCase().trim();
+  const msgRef = ref(db, `group_chats/${cleanCode}/messages/${messageId}`);
+  try {
+    await remove(msgRef);
+  } catch (err) {
+    console.warn('deleteGroupChatMessage error:', err);
+  }
+};
+
+
