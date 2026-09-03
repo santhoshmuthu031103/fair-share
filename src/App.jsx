@@ -1182,60 +1182,97 @@ export function App() {
     }, 100);
   };
 
-  // Centralized Notification Deep-Linking & Routing Handler
-  const handleNotificationRouting = (notif) => {
-    if (!notif) return;
-    const action = notif.action;
-    const groupId = notif.groupId;
-    const syncCode = notif.syncCode;
-    console.log('[NotificationRouter] Routing notification:', notif);
+  // Stateful Notification Deep-Linking & Routing Queue
+  const [pendingRouting, setPendingRouting] = useState(null);
 
-    // 1. App Update notification -> Open Profile Modal (where updater is)
-    if (action === 'app_update') {
+  const enqueueNotificationForRouting = (notif) => {
+    if (!notif) return;
+    console.log('[NotificationRouter] Enqueuing notification for routing:', notif);
+    setPendingRouting(notif);
+  };
+
+  // Process pending notification routing as soon as groups are loaded or updated
+  useEffect(() => {
+    if (!pendingRouting) return;
+    const notif = pendingRouting;
+
+    const action = notif.action;
+    const groupId = notif.groupId || notif.group_id;
+    const syncCode = notif.syncCode || notif.sync_code;
+    const title = notif.title || notif.customTitle || '';
+    const body = notif.body || notif.customBody || notif.message || '';
+
+    console.log('[NotificationRouter] Processing routing:', { action, groupId, syncCode, title, body });
+
+    // 1. App Update notification -> Open Profile Modal (Update page)
+    if (action === 'app_update' || notif.latestVersion || title.toLowerCase().includes('update')) {
       setSelectedGroup(null);
       setModalType('profile');
+      setPendingRouting(null);
       return;
     }
 
-    // 2. Group or Chat notification -> Find group and route
-    if (groupId || syncCode) {
-      const targetGroup = state.groups.find(g => 
-        (groupId && g.id === groupId) || 
-        (syncCode && (
-          g.syncCode?.toUpperCase() === syncCode?.toUpperCase() || 
-          g.id?.slice(-6)?.toUpperCase() === syncCode?.toUpperCase()
-        ))
-      );
-
-      if (targetGroup) {
-        setModalType(null);
-        if (action === 'chat_message' || action === 'nudge_settle') {
-          handleSelectGroup(targetGroup, 'chat');
-        } else {
-          handleSelectGroup(targetGroup);
-        }
-      } else if (syncCode) {
-        fetchCloudGroup(syncCode).then(cloudData => {
-          if (cloudData && cloudData.group) {
-            handleJoinGroup(syncCode, cloudData);
-            const joinedGrp = { ...cloudData.group, syncCode };
-            if (action === 'chat_message' || action === 'nudge_settle') {
-              handleSelectGroup(joinedGrp, 'chat');
-            } else {
-              handleSelectGroup(joinedGrp);
-            }
-          }
-        }).catch(console.warn);
-      }
+    // Determine target group name (from payload or extract from title like "💬 Trip • Santhosh")
+    let targetGroupName = (notif.groupName || notif.group_name || '').trim();
+    if (!targetGroupName && title.includes('•')) {
+      const part = title.split('•')[0];
+      targetGroupName = part.replace(/[^\w\s]/gi, '').trim();
     }
-  };
+
+    // Determine if this is a chat message (route into chat view)
+    const isChat = action === 'chat_message' || 
+                   action === 'nudge_settle' || 
+                   title.includes('💬') || 
+                   title.toLowerCase().includes('chat') ||
+                   (!action && body && !title.toLowerCase().includes('settled') && !title.toLowerCase().includes('expense'));
+
+    // Find the group in local state
+    const targetGroup = state.groups.find(g => {
+      if (groupId && g.id === groupId) return true;
+      if (syncCode && (
+        g.syncCode?.toUpperCase() === syncCode?.toUpperCase() ||
+        g.id?.slice(-6)?.toUpperCase() === syncCode?.toUpperCase()
+      )) return true;
+      if (targetGroupName && g.name?.trim()?.toLowerCase() === targetGroupName.toLowerCase()) return true;
+      return false;
+    });
+
+    if (targetGroup) {
+      console.log('[NotificationRouter] Successfully matched group:', targetGroup.name, 'isChat:', isChat);
+      setModalType(null);
+      if (isChat) {
+        handleSelectGroup(targetGroup, 'chat');
+      } else {
+        handleSelectGroup(targetGroup);
+      }
+      setPendingRouting(null);
+    } else if (syncCode) {
+      // Fetch from cloud if not yet in state
+      fetchCloudGroup(syncCode).then(cloudData => {
+        if (cloudData && cloudData.group) {
+          handleJoinGroup(syncCode, cloudData);
+          const joinedGrp = { ...cloudData.group, syncCode };
+          if (isChat) {
+            handleSelectGroup(joinedGrp, 'chat');
+          } else {
+            handleSelectGroup(joinedGrp);
+          }
+          setPendingRouting(null);
+        }
+      }).catch(console.warn);
+    } else if (state.groups.length > 0) {
+      // If groups are already loaded and no match found after check, clear queue
+      console.warn('[NotificationRouter] Could not find group for notification:', notif);
+      setPendingRouting(null);
+    }
+  }, [pendingRouting, state.groups]);
 
   // Notification tap listeners (Cold start + Warm start + Foreground)
   useEffect(() => {
     // 1. Cold start: check if app was opened by clicking a notification
     getPendingNotification().then(notif => {
       if (notif) {
-        handleNotificationRouting(notif);
+        enqueueNotificationForRouting(notif);
       }
     }).catch(() => {});
 
@@ -1244,7 +1281,7 @@ export function App() {
     try {
       sub = addNotificationListener((notif) => {
         if (notif) {
-          handleNotificationRouting(notif);
+          enqueueNotificationForRouting(notif);
         }
       });
     } catch (_) {}
@@ -1256,7 +1293,7 @@ export function App() {
         try { data = JSON.parse(data); } catch (_) {}
       }
       if (data) {
-        handleNotificationRouting(data);
+        enqueueNotificationForRouting(data);
       }
     };
     window.addEventListener('fairshare_notification_opened', handleWindowEvent);
@@ -1266,7 +1303,7 @@ export function App() {
       FirebaseMessaging.addListener('notificationActionPerformed', (event) => {
         const data = event?.notification?.data;
         if (data) {
-          handleNotificationRouting(data);
+          enqueueNotificationForRouting(data);
         }
       }).catch(() => {});
     }).catch(() => {});
@@ -1275,7 +1312,7 @@ export function App() {
       if (sub && sub.remove) sub.remove();
       window.removeEventListener('fairshare_notification_opened', handleWindowEvent);
     };
-  }, [state.groups]);
+  }, []);
 
   return (
     <div className={`app-container ${isDarkMode ? 'dark-theme' : 'light-theme'}`}>

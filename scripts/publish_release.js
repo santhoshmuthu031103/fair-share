@@ -98,6 +98,27 @@ async function publishRelease(version, releaseNotes) {
     }
   }
 
+  // 3. Broadcast instant push notification to all phones (via app_updates topic)
+  try {
+    console.log('Broadcasting update push notification to all devices...');
+    const notifRes = await fetch('https://split-app.santhoshmuthu031103.workers.dev/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        secret: 'fairshare2024',
+        topic: 'app_updates',
+        action: 'app_update',
+        latestVersion: version,
+        customTitle: `🚀 FairShare ${tag} Available!`,
+        customBody: `New version ready: ${releaseNotes || 'Tap here to update directly inside FairShare.'}`,
+      }),
+    });
+    const notifData = await notifRes.json();
+    console.log('✓ Update push broadcast result:', notifData);
+  } catch (err) {
+    console.warn('Push broadcast error:', err.message);
+  }
+
   console.log(`🎉 Release ${tag} published successfully! URL: ${releaseData.html_url}`);
 }
 

@@ -40,7 +40,9 @@ public class NativeUpdatePlugin extends Plugin {
     public static void handleNotificationIntent(Intent intent, com.getcapacitor.Bridge bridge) {
         if (intent == null || intent.getExtras() == null) return;
         android.os.Bundle extras = intent.getExtras();
-        if (extras.containsKey("action") || extras.containsKey("groupId") || extras.containsKey("syncCode") || extras.containsKey("latestVersion")) {
+        if (extras.containsKey("action") || extras.containsKey("groupId") || extras.containsKey("syncCode") || 
+            extras.containsKey("latestVersion") || extras.containsKey("groupName") || extras.containsKey("title") ||
+            extras.containsKey("body") || extras.containsKey("customTitle") || extras.containsKey("google.message_id")) {
             JSObject data = new JSObject();
             for (String key : extras.keySet()) {
                 Object val = extras.get(key);

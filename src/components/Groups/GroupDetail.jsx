@@ -52,6 +52,13 @@ export const GroupDetail = ({
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
   const [selectedNewMemberIds, setSelectedNewMemberIds] = useState([]);
 
+  // Auto-open chat when initialView is requested (e.g. from notification tap)
+  useEffect(() => {
+    if (group?.initialView === 'chat') {
+      setIsChatModalOpen(true);
+    }
+  }, [group?.initialView, group?.id]);
+
   const currentUserId = currentUser?.id || friends[0]?.id;
   const syncCode = group?.syncCode || group?.id?.slice(-6)?.toUpperCase();
 
@@ -680,88 +687,89 @@ export const GroupDetail = ({
         </div>
       )}
 
-      {/* Floating Chat Button (Option 3 FAB) */}
-      <button
-        type="button"
-        onClick={() => {
-          markGroupChatAsRead(syncCode);
-          setHasUnread(false);
-          setIsChatModalOpen(true);
-        }}
-        style={{
-          position: 'fixed',
-          bottom: '82px',
-          right: '20px',
-          width: '52px',
-          height: '52px',
-          borderRadius: '50%',
-          background: hasUnread 
-            ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' 
-            : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-          color: '#ffffff',
-          border: 'none',
-          boxShadow: hasUnread 
-            ? '0 8px 24px rgba(239, 68, 68, 0.55)' 
-            : '0 8px 24px rgba(16, 185, 129, 0.45)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          zIndex: 45,
-          transition: 'transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease',
-        }}
-        title={`Chat in ${group.name}${hasUnread ? ' (New messages)' : ''}`}
-      >
-        <MessageSquare size={22} />
-        {hasUnread && (
-          <span 
-            style={{
-              position: 'absolute',
-              top: '2px',
-              right: '2px',
-              width: '12px',
-              height: '12px',
-              borderRadius: '50%',
-              backgroundColor: '#ffffff',
-              border: '2px solid #ef4444',
-              boxShadow: '0 0 6px #ffffff',
-              display: 'block'
-            }}
-          />
-        )}
-      </button>
+      {/* Floating Chat Button (Option 3 FAB) - Hidden when chat is open */}
+      {!isChatModalOpen && (
+        <button
+          type="button"
+          onClick={() => {
+            markGroupChatAsRead(syncCode);
+            setHasUnread(false);
+            setIsChatModalOpen(true);
+          }}
+          style={{
+            position: 'fixed',
+            bottom: '82px',
+            right: '20px',
+            width: '52px',
+            height: '52px',
+            borderRadius: '50%',
+            background: hasUnread 
+              ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' 
+              : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+            color: '#ffffff',
+            border: 'none',
+            boxShadow: hasUnread 
+              ? '0 8px 24px rgba(239, 68, 68, 0.55)' 
+              : '0 8px 24px rgba(16, 185, 129, 0.45)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            zIndex: 45,
+            transition: 'transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease',
+          }}
+          title={`Chat in ${group.name}${hasUnread ? ' (New messages)' : ''}`}
+        >
+          <MessageSquare size={22} />
+          {hasUnread && (
+            <span 
+              style={{
+                position: 'absolute',
+                top: '2px',
+                right: '2px',
+                width: '12px',
+                height: '12px',
+                borderRadius: '50%',
+                backgroundColor: '#ffffff',
+                border: '2px solid #ef4444',
+                boxShadow: '0 0 6px #ffffff',
+                display: 'block'
+              }}
+            />
+          )}
+        </button>
+      )}
 
-      {/* Group Chat Bottom Sheet Modal */}
+      {/* Group Chat Fullscreen View (WhatsApp / Instagram style - No Background Bleed) */}
       {isChatModalOpen && (
-        <div className="modal-overlay" onClick={() => setIsChatModalOpen(false)}>
-          <div 
-            className="bottom-sheet" 
-            onClick={(e) => e.stopPropagation()}
-            style={{ 
-              maxHeight: '88vh', 
-              height: '88vh', 
-              display: 'flex', 
-              flexDirection: 'column', 
-              padding: 0,
-              overflow: 'hidden'
-            }}
-          >
-            <div className="sheet-handle" style={{ marginTop: '8px', marginBottom: '2px' }} />
-            
-            <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-              <GroupChat 
-                group={group} 
-                currentUser={currentUser} 
-                friends={friends} 
-                someoneOwesMe={someoneOwesMe}
-                onClose={() => setIsChatModalOpen(false)}
-                onOpenSettleUp={() => {
-                  setIsChatModalOpen(false);
-                  onOpenSettleUp(group.id);
-                }} 
-              />
-            </div>
-          </div>
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100%',
+            height: '100%',
+            maxHeight: '100dvh',
+            zIndex: 9999,
+            background: 'var(--bg-card)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}
+        >
+          <GroupChat 
+            group={group} 
+            currentUser={currentUser} 
+            friends={friends} 
+            someoneOwesMe={someoneOwesMe}
+            onClose={() => setIsChatModalOpen(false)}
+            onOpenSettleUp={() => {
+              setIsChatModalOpen(false);
+              onOpenSettleUp(group.id);
+            }} 
+          />
         </div>
       )}
     </div>

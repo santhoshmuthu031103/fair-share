@@ -10,6 +10,7 @@ import {
   Receipt,
   CheckCheck,
   ChevronDown,
+  ArrowLeft,
   X
 } from 'lucide-react';
 import { 
@@ -226,7 +227,27 @@ export const GroupChat = ({ group, currentUser, friends, onOpenSettleUp, onClose
         justifyContent: 'space-between',
         flexShrink: 0
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-primary)',
+                padding: '4px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: '2px'
+              }}
+              title="Back"
+            >
+              <ArrowLeft size={22} />
+            </button>
+          )}
           {group?.coverImage ? (
             <img 
               src={group.coverImage} 
@@ -323,7 +344,8 @@ export const GroupChat = ({ group, currentUser, friends, onOpenSettleUp, onClose
           display: 'flex',
           flexDirection: 'column',
           gap: '12px',
-          scrollbarWidth: 'thin'
+          scrollbarWidth: 'thin',
+          overscrollBehavior: 'contain'
         }}
       >
         {messages.length === 0 ? (
@@ -634,11 +656,13 @@ export const GroupChat = ({ group, currentUser, friends, onOpenSettleUp, onClose
         onSubmit={handleSendMessage}
         style={{
           padding: '10px 14px',
+          paddingBottom: 'max(10px, env(safe-area-inset-bottom))',
           borderTop: '1px solid var(--border-color)',
           background: 'var(--bg-input)',
           display: 'flex',
           alignItems: 'center',
-          gap: '8px'
+          gap: '8px',
+          flexShrink: 0
         }}
       >
         <input

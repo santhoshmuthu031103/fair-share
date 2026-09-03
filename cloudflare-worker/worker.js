@@ -102,6 +102,52 @@ export default {
       return corsResponse({ error: 'Failed to generate OAuth token: ' + err.message }, 500);
     }
 
+    // Topic Broadcast (e.g. app_updates to all users even when closed)
+    const projectId = env.FIREBASE_PROJECT_ID || 'split-app-60045';
+    const fcmV1Url = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
+
+    if (body.topic) {
+      const topicPayload = {
+        message: {
+          topic: body.topic,
+          notification: {
+            title: title || '🚀 FairShare Update Available!',
+            body: notifBody || 'Tap to install the latest FairShare update.',
+          },
+          android: {
+            priority: 'HIGH',
+            notification: {
+              sound: 'default',
+              channel_id: 'fairshare_app_updates',
+              default_sound: true,
+              default_vibrate_timings: true,
+            },
+          },
+          data: {
+            action: action || 'app_update',
+            latestVersion: body.latestVersion || '',
+            title: title || '',
+            body: notifBody || '',
+          },
+        },
+      };
+
+      try {
+        const topicRes = await fetch(fcmV1Url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify(topicPayload),
+        });
+        const resJson = await topicRes.json();
+        return corsResponse({ ok: topicRes.ok, topic: body.topic, result: resJson });
+      } catch (err) {
+        return corsResponse({ error: 'Topic broadcast failed: ' + err.message }, 500);
+      }
+    }
+
     // 1. Use tokens directly provided by client if available
     let tokens = Array.isArray(body.tokens) ? body.tokens.filter(Boolean) : [];
 

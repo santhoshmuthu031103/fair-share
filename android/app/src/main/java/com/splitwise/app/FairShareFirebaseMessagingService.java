@@ -96,12 +96,15 @@ public class FairShareFirebaseMessagingService extends FirebaseMessagingService 
         }
 
         Intent intent = new Intent(context, MainActivity.class);
+        intent.setAction(Intent.ACTION_VIEW);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         if (data != null) {
             for (Map.Entry<String, String> entry : data.entrySet()) {
                 intent.putExtra(entry.getKey(), entry.getValue());
             }
         }
+        if (title != null) intent.putExtra("title", title);
+        if (body != null) intent.putExtra("body", body);
 
         PendingIntent pendingIntent = PendingIntent.getActivity(
                 context,

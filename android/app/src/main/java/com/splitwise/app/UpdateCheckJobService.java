@@ -51,16 +51,18 @@ public class UpdateCheckJobService extends JobService {
             }
 
             ComponentName component = new ComponentName(context, UpdateCheckJobService.class);
-            // Periodic check every 4 hours (Android minimum is 15 minutes)
+            // Periodic check every 15 minutes (Android system minimum)
             JobInfo.Builder builder = new JobInfo.Builder(JOB_ID, component)
                     .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
-                    .setPeriodic(4 * 60 * 60 * 1000L)
+                    .setPeriodic(15 * 60 * 1000L)
                     .setPersisted(true);
 
             int result = scheduler.schedule(builder.build());
             if (result == JobScheduler.RESULT_SUCCESS) {
-                Log.d(TAG, "Update check job scheduled successfully.");
+                Log.d(TAG, "Update check job scheduled successfully (15 min interval).");
             }
+            // Also run a background check immediately
+            checkNow(context);
         } catch (Exception e) {
             Log.e(TAG, "Failed to schedule update check job", e);
         }
