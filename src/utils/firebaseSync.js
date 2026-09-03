@@ -249,8 +249,11 @@ export const publishToCloudGroup = (syncCode, groupData) => {
   if (!db || !syncCode) return;
   const cleanCode = syncCode.toUpperCase().replace(/[^A-Z0-9]/g, '');
   const groupRef = ref(db, `groups/${cleanCode}`);
-  set(groupRef, { ...groupData, lastUpdated: new Date().toISOString() })
-    .catch((err) => console.warn('Publish error:', err));
+  set(groupRef, { 
+    syncCode: cleanCode,
+    ...groupData, 
+    lastUpdated: new Date().toISOString() 
+  }).catch((err) => console.warn('Publish error:', err));
 };
 
 /**
@@ -260,8 +263,17 @@ export const deleteCloudGroup = (syncCode) => {
   if (!db || !syncCode) return;
   const cleanCode = syncCode.toUpperCase().replace(/[^A-Z0-9]/g, '');
   const groupRef = ref(db, `groups/${cleanCode}`);
-  set(groupRef, { deleted: true, lastUpdated: new Date().toISOString() })
-    .catch((err) => console.warn('Delete cloud group error:', err));
+  set(groupRef, { 
+    syncCode: cleanCode,
+    deleted: true, 
+    group: {
+      id: cleanCode,
+      syncCode: cleanCode,
+      name: 'Deleted Group',
+      deleted: true
+    },
+    lastUpdated: new Date().toISOString() 
+  }).catch((err) => console.warn('Delete cloud group error:', err));
 };
 
 /**

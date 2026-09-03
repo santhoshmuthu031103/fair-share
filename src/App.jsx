@@ -1309,11 +1309,16 @@ export function App() {
     // 2. Warm start: notification clicked while app was in background
     let sub = null;
     try {
-      sub = addNotificationListener((notif) => {
+      const p = addNotificationListener((notif) => {
         if (notif) {
           enqueueNotificationForRouting(notif);
         }
       });
+      if (p && typeof p.then === 'function') {
+        p.then(handle => { sub = handle; }).catch(() => {});
+      } else {
+        sub = p;
+      }
     } catch (_) {}
 
     // 3. Window event dispatched by native bridge
@@ -1339,7 +1344,9 @@ export function App() {
     }).catch(() => {});
 
     return () => {
-      if (sub && sub.remove) sub.remove();
+      if (sub && typeof sub.remove === 'function') {
+        try { sub.remove(); } catch (_) {}
+      }
       window.removeEventListener('fairshare_notification_opened', handleWindowEvent);
     };
   }, []);
