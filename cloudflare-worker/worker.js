@@ -90,15 +90,25 @@ export default {
       notifBody = `${senderName} made an update in ${groupName}`;
     }
 
-    // Use tokens directly provided by client if available
+    // Get Google OAuth2 Access Token for FCM v1 & Firebase Admin DB access
+    let accessToken;
+    try {
+      const rawSa = env.FIREBASE_SERVICE_ACCOUNT_JSON || env.FIREBASE_SERVICE_ACCOUNT;
+      const sa = typeof rawSa === 'object' ? rawSa : JSON.parse(rawSa);
+      accessToken = await getGoogleAccessToken(sa);
+    } catch (err) {
+      return corsResponse({ error: 'Failed to generate OAuth token: ' + err.message }, 500);
+    }
+
+    // 1. Use tokens directly provided by client if available
     let tokens = Array.isArray(body.tokens) ? body.tokens.filter(Boolean) : [];
 
-    // Otherwise fetch member FCM tokens from Firebase Realtime DB
+    // 2. Otherwise fetch member FCM tokens from Firebase Realtime DB with admin access token
     if (tokens.length === 0) {
       const dbUrl = env.FIREBASE_DB_URL;
       const tokenFetches = memberIds.map(async (uid) => {
         try {
-          const res = await fetch(`${dbUrl}/fcm_tokens/${uid}.json`);
+          const res = await fetch(`${dbUrl}/fcm_tokens/${uid}.json?access_token=${accessToken}`);
           if (!res.ok) return null;
           const data = await res.json();
           return data?.token || null;
@@ -113,16 +123,6 @@ export default {
 
     if (tokens.length === 0) {
       return corsResponse({ ok: true, message: 'No FCM tokens found for members' });
-    }
-
-    // Get Google OAuth2 Access Token for FCM v1
-    let accessToken;
-    try {
-      const rawSa = env.FIREBASE_SERVICE_ACCOUNT_JSON || env.FIREBASE_SERVICE_ACCOUNT;
-      const sa = typeof rawSa === 'object' ? rawSa : JSON.parse(rawSa);
-      accessToken = await getGoogleAccessToken(sa);
-    } catch (err) {
-      return corsResponse({ error: 'Failed to generate OAuth token: ' + err.message }, 500);
     }
 
     const projectId = env.FIREBASE_PROJECT_ID || 'split-app-60045';

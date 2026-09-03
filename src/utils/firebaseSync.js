@@ -573,11 +573,40 @@ export const sendGroupChatMessage = async (syncCode, message) => {
 
   try {
     await set(newMsgRef, payload);
+
+    // Update lightweight lastMessage node for real-time unread dot indicators
+    const lastMsgRef = ref(db, `group_chats/${cleanCode}/lastMessage`);
+    set(lastMsgRef, {
+      id: payload.id,
+      senderId: payload.senderId,
+      senderName: payload.senderName,
+      text: payload.text,
+      type: payload.type,
+      timestamp: payload.timestamp,
+    }).catch(() => {});
+
     return payload;
   } catch (err) {
     console.error('sendGroupChatMessage error:', err);
     throw err;
   }
+};
+
+/**
+ * Subscribe to lightweight last message updates for a group (for unread notification dots)
+ */
+export const subscribeGroupChatLastMessage = (syncCode, onUpdate) => {
+  if (!db || !syncCode) return () => {};
+  const cleanCode = syncCode.toUpperCase().trim();
+  const lastMsgRef = ref(db, `group_chats/${cleanCode}/lastMessage`);
+
+  return onValue(lastMsgRef, (snapshot) => {
+    if (snapshot.exists()) {
+      onUpdate(snapshot.val());
+    } else {
+      onUpdate(null);
+    }
+  });
 };
 
 /**

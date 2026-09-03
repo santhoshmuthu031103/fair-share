@@ -77,6 +77,7 @@ export const GroupList = ({
                 key={group.id}
                 group={group}
                 friends={friends}
+                currentUserId={currentUserId}
                 netBalance={userBalance}
                 currency={currency}
                 onClick={() => onSelectGroup(group)}

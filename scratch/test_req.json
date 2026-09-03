@@ -1,0 +1,10 @@
+{
+  "secret": "fairshare2024",
+  "action": "chat_message",
+  "senderName": "Santhosh",
+  "groupName": "Trip",
+  "customTitle": "💬 Trip • Santhosh",
+  "customBody": "Hey test message!",
+  "memberIds": ["user_1788157146180_4b2nh"],
+  "tokens": ["fDUhcRoMQV6nxS1F0VWWt3:APA91bEZHTwO67TKqmxpDr6mAT7hpQH_bLgVYL6Z7cP7MYHdoYASaZB6ulH7NU9OW6sAeqQYq31x-k10q3WE4L7zOgUvmFBprEUR6hBcsRt9iiZ5SqM1Kcg"]
+}

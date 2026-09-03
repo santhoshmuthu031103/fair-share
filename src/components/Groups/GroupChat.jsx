@@ -19,6 +19,7 @@ import {
   triggerNotification
 } from '../../utils/firebaseSync';
 import { avatarOnError, getAvatarUrl } from '../../utils/avatarHelper';
+import { markGroupChatAsRead } from '../../utils/chatTracker';
 
 const QUICK_REACTIONS = ['👍', '❤️', '💸', '🧾', '🔥'];
 
@@ -33,11 +34,14 @@ export const GroupChat = ({ group, currentUser, friends, onOpenSettleUp, onClose
   const currentUserId = currentUser?.id || 'anon';
   const syncCode = group?.syncCode || group?.id?.slice(-6)?.toUpperCase();
 
-  // Subscribe to real-time chat updates
+  // Subscribe to real-time chat updates & mark as read
   useEffect(() => {
     if (!syncCode) return;
+    markGroupChatAsRead(syncCode);
+
     const unsubscribe = subscribeGroupChat(syncCode, (msgList) => {
       setMessages(msgList);
+      markGroupChatAsRead(syncCode);
     });
     return () => unsubscribe();
   }, [syncCode]);

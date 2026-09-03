@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { buildLedger, calculateExpenseShares } from '../../utils/debtCalculator';
 import { formatCurrency, formatDate, getCategoryMeta, CATEGORIES } from '../../utils/formatters';
 import { 
@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 import { avatarOnError, getAvatarUrl } from '../../utils/avatarHelper';
 import { GroupChat } from './GroupChat';
+import { subscribeGroupChatLastMessage } from '../../utils/firebaseSync';
+import { getLastReadTimestamp, markGroupChatAsRead } from '../../utils/chatTracker';
 
 const ICON_MAP = { Utensils, ShoppingBag, Home, Zap, Plane, Film, Tag, Receipt };
 
@@ -45,11 +47,50 @@ export const GroupDetail = ({
   onDeleteExpense 
 }) => {
   const [isChatModalOpen, setIsChatModalOpen] = useState(group?.initialView === 'chat');
+  const [hasUnread, setHasUnread] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState(null);
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
   const [selectedNewMemberIds, setSelectedNewMemberIds] = useState([]);
 
   const currentUserId = currentUser?.id || friends[0]?.id;
+  const syncCode = group?.syncCode || group?.id?.slice(-6)?.toUpperCase();
+
+  // Track unread messages in real-time
+  useEffect(() => {
+    if (!syncCode) return;
+
+    if (isChatModalOpen) {
+      markGroupChatAsRead(syncCode);
+      setHasUnread(false);
+      return;
+    }
+
+    const evaluateUnread = (lastMsg) => {
+      if (!lastMsg || !lastMsg.timestamp || isChatModalOpen) {
+        setHasUnread(false);
+        return;
+      }
+      const lastRead = getLastReadTimestamp(syncCode);
+      const isFromOther = lastMsg.senderId && lastMsg.senderId !== currentUserId;
+      setHasUnread(Boolean(isFromOther && lastMsg.timestamp > lastRead));
+    };
+
+    const unsub = subscribeGroupChatLastMessage(syncCode, (lastMsg) => {
+      evaluateUnread(lastMsg);
+    });
+
+    const handleReadEvent = (e) => {
+      if (e.detail?.syncCode === syncCode?.toUpperCase()) {
+        setHasUnread(false);
+      }
+    };
+    window.addEventListener('fairshare_chat_read', handleReadEvent);
+
+    return () => {
+      if (unsub) unsub();
+      window.removeEventListener('fairshare_chat_read', handleReadEvent);
+    };
+  }, [syncCode, currentUserId, isChatModalOpen]);
 
   const groupMembers = (group.members || [])
     .map(mId => friends.find(f => f.id === mId))
@@ -170,24 +211,44 @@ export const GroupDetail = ({
 
             <button
               type="button"
-              onClick={() => setIsChatModalOpen(true)}
+              onClick={() => {
+                markGroupChatAsRead(syncCode);
+                setHasUnread(false);
+                setIsChatModalOpen(true);
+              }}
               style={{
+                position: 'relative',
                 fontSize: '0.72rem',
-                background: 'rgba(16, 185, 129, 0.3)',
+                background: hasUnread ? 'rgba(239, 68, 68, 0.25)' : 'rgba(16, 185, 129, 0.3)',
                 color: '#ffffff',
                 padding: '3px 10px',
                 borderRadius: '10px',
                 fontWeight: '700',
                 cursor: 'pointer',
-                border: '1px solid rgba(16, 185, 129, 0.5)',
+                border: hasUnread ? '1px solid rgba(239, 68, 68, 0.6)' : '1px solid rgba(16, 185, 129, 0.5)',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '4px',
                 boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
               }}
             >
-              <MessageSquare size={13} color="#10b981" />
+              <MessageSquare size={13} color={hasUnread ? '#ef4444' : '#10b981'} />
               <span>Chat</span>
+              {hasUnread && (
+                <span 
+                  style={{
+                    position: 'absolute',
+                    top: '-3px',
+                    right: '-3px',
+                    width: '9px',
+                    height: '9px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ef4444',
+                    border: '1.5px solid #111827',
+                    boxShadow: '0 0 6px rgba(239, 68, 68, 0.9)'
+                  }}
+                />
+              )}
             </button>
           </div>
           <h1 style={{ color: '#fff', fontSize: '1.4rem', fontWeight: '800' }}>
@@ -622,7 +683,11 @@ export const GroupDetail = ({
       {/* Floating Chat Button (Option 3 FAB) */}
       <button
         type="button"
-        onClick={() => setIsChatModalOpen(true)}
+        onClick={() => {
+          markGroupChatAsRead(syncCode);
+          setHasUnread(false);
+          setIsChatModalOpen(true);
+        }}
         style={{
           position: 'fixed',
           bottom: '82px',
@@ -630,20 +695,40 @@ export const GroupDetail = ({
           width: '52px',
           height: '52px',
           borderRadius: '50%',
-          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+          background: hasUnread 
+            ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' 
+            : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
           color: '#ffffff',
           border: 'none',
-          boxShadow: '0 8px 24px rgba(16, 185, 129, 0.45)',
+          boxShadow: hasUnread 
+            ? '0 8px 24px rgba(239, 68, 68, 0.55)' 
+            : '0 8px 24px rgba(16, 185, 129, 0.45)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
           zIndex: 45,
-          transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+          transition: 'transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease',
         }}
-        title={`Chat in ${group.name}`}
+        title={`Chat in ${group.name}${hasUnread ? ' (New messages)' : ''}`}
       >
         <MessageSquare size={22} />
+        {hasUnread && (
+          <span 
+            style={{
+              position: 'absolute',
+              top: '2px',
+              right: '2px',
+              width: '12px',
+              height: '12px',
+              borderRadius: '50%',
+              backgroundColor: '#ffffff',
+              border: '2px solid #ef4444',
+              boxShadow: '0 0 6px #ffffff',
+              display: 'block'
+            }}
+          />
+        )}
       </button>
 
       {/* Group Chat Bottom Sheet Modal */}

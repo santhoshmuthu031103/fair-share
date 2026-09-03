@@ -1,13 +1,52 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { formatCurrency } from '../../utils/formatters';
 import { Users, ChevronRight, MessageSquare } from 'lucide-react';
 import { avatarOnError, getAvatarUrl } from '../../utils/avatarHelper';
+import { subscribeGroupChatLastMessage } from '../../utils/firebaseSync';
+import { getLastReadTimestamp, markGroupChatAsRead } from '../../utils/chatTracker';
 
-export const GroupCard = ({ group, friends = [], netBalance, balance, currency, onClick, onOpenChat }) => {
+export const GroupCard = ({ group, friends = [], currentUserId, netBalance, balance, currency, onClick, onOpenChat }) => {
+  const [hasUnread, setHasUnread] = useState(false);
   const actualBalance = netBalance !== undefined ? netBalance : (balance || 0);
+  const syncCode = group?.syncCode || group?.id?.slice(-6)?.toUpperCase();
+
   const memberObjList = (group.members || [])
     .map(mId => (friends || []).find(f => f.id === mId))
     .filter(Boolean);
+
+  // Listen for real-time chat updates to toggle the unread dot indicator
+  useEffect(() => {
+    if (!syncCode) return;
+
+    let currentLastMsg = null;
+
+    const evaluateUnread = (lastMsg) => {
+      if (!lastMsg || !lastMsg.timestamp) {
+        setHasUnread(false);
+        return;
+      }
+      const lastRead = getLastReadTimestamp(syncCode);
+      const isFromOther = lastMsg.senderId && lastMsg.senderId !== currentUserId;
+      setHasUnread(Boolean(isFromOther && lastMsg.timestamp > lastRead));
+    };
+
+    const unsub = subscribeGroupChatLastMessage(syncCode, (lastMsg) => {
+      currentLastMsg = lastMsg;
+      evaluateUnread(lastMsg);
+    });
+
+    const handleReadEvent = (e) => {
+      if (e.detail?.syncCode === syncCode?.toUpperCase()) {
+        setHasUnread(false);
+      }
+    };
+    window.addEventListener('fairshare_chat_read', handleReadEvent);
+
+    return () => {
+      if (unsub) unsub();
+      window.removeEventListener('fairshare_chat_read', handleReadEvent);
+    };
+  }, [syncCode, currentUserId]);
 
   const getBalanceText = () => {
     if (Math.abs(actualBalance) < 0.01) {
@@ -69,30 +108,31 @@ export const GroupCard = ({ group, friends = [], netBalance, balance, currency, 
                 title={member.name}
                 onError={avatarOnError(member.name)}
                 style={{
-                  width: '28px',
-                  height: '28px',
+                  width: '32px',
+                  height: '32px',
                   borderRadius: '50%',
                   border: '2px solid var(--bg-card)',
-                  marginLeft: idx > 0 ? '-8px' : '0',
+                  marginLeft: idx > 0 ? '-10px' : '0',
                   objectFit: 'cover',
+                  background: 'var(--bg-input)'
                 }}
               />
             ))}
             {memberObjList.length > 4 && (
               <div 
                 style={{
-                  width: '28px',
-                  height: '28px',
+                  width: '32px',
+                  height: '32px',
                   borderRadius: '50%',
-                  background: 'var(--bg-input)',
+                  background: 'var(--bg-secondary)',
                   border: '2px solid var(--bg-card)',
-                  marginLeft: '-8px',
-                  fontSize: '0.7rem',
-                  fontWeight: '700',
+                  marginLeft: '-10px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: 'var(--text-secondary)'
+                  fontSize: '0.72rem',
+                  fontWeight: '700',
+                  color: 'var(--text-muted)'
                 }}
               >
                 +{memberObjList.length - 4}
@@ -113,25 +153,45 @@ export const GroupCard = ({ group, friends = [], netBalance, balance, currency, 
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
+                markGroupChatAsRead(syncCode);
+                setHasUnread(false);
                 onOpenChat(group);
               }}
               style={{
-                width: '34px',
-                height: '34px',
+                position: 'relative',
+                width: '36px',
+                height: '36px',
                 borderRadius: '50%',
-                background: 'var(--accent-mint-glow)',
-                border: '1px solid rgba(16, 185, 129, 0.4)',
-                color: 'var(--accent-mint)',
+                background: hasUnread ? 'rgba(239, 68, 68, 0.15)' : 'var(--accent-mint-glow)',
+                border: hasUnread ? '1.5px solid #ef4444' : '1px solid rgba(16, 185, 129, 0.4)',
+                color: hasUnread ? '#ef4444' : 'var(--accent-mint)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                transition: 'all 0.2s ease',
+                transition: 'all 0.25s ease',
                 flexShrink: 0
               }}
-              title={`Chat in ${group.name}`}
+              title={`Chat in ${group.name}${hasUnread ? ' (New messages)' : ''}`}
             >
-              <MessageSquare size={16} />
+              <MessageSquare size={17} />
+              {/* WhatsApp / Instagram style unread notification dot */}
+              {hasUnread && (
+                <span 
+                  style={{
+                    position: 'absolute',
+                    top: '-2px',
+                    right: '-2px',
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ef4444',
+                    border: '2px solid var(--bg-card)',
+                    boxShadow: '0 0 6px rgba(239, 68, 68, 0.9)',
+                    display: 'block'
+                  }}
+                />
+              )}
             </button>
           )}
         </div>
