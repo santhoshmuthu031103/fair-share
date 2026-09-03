@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { 
   Send, 
   BellRing, 
@@ -9,6 +9,7 @@ import {
   DollarSign,
   Receipt,
   CheckCheck,
+  ChevronDown,
   X
 } from 'lucide-react';
 import { 
@@ -24,15 +25,53 @@ import { markGroupChatAsRead } from '../../utils/chatTracker';
 const QUICK_REACTIONS = ['👍', '❤️', '💸', '🧾', '🔥'];
 
 export const GroupChat = ({ group, currentUser, friends, onOpenSettleUp, onClose, someoneOwesMe }) => {
-  const [messages, setMessages] = useState([]);
+  const currentUserId = currentUser?.id || 'anon';
+  const syncCode = group?.syncCode || group?.id?.slice(-6)?.toUpperCase();
+
+  // 1. Instant Cache Loading: show cached messages in 0ms, no blank wait time
+  const [messages, setMessages] = useState(() => {
+    if (!syncCode) return [];
+    try {
+      const cached = localStorage.getItem(`fairshare_chat_cache_${syncCode}`);
+      return cached ? JSON.parse(cached) : [];
+    } catch (_) {
+      return [];
+    }
+  });
+
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [showReactionPickerFor, setShowReactionPickerFor] = useState(null);
+  const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
+
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const chatContainerRef = useRef(null);
+  const isInitialScrollDoneRef = useRef(false);
 
-  const currentUserId = currentUser?.id || 'anon';
-  const syncCode = group?.syncCode || group?.id?.slice(-6)?.toUpperCase();
+  // Jump to bottom immediately without any visible scroll-down animation
+  const jumpToBottomInstant = () => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  };
+
+  const scrollToBottomSmooth = () => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  // Immediate jump to latest message on first load (no visible scrolling)
+  useLayoutEffect(() => {
+    if (!isInitialScrollDoneRef.current && messages.length > 0) {
+      jumpToBottomInstant();
+      isInitialScrollDoneRef.current = true;
+    }
+  }, [messages]);
 
   // Subscribe to real-time chat updates & mark as read
   useEffect(() => {
@@ -41,15 +80,39 @@ export const GroupChat = ({ group, currentUser, friends, onOpenSettleUp, onClose
 
     const unsubscribe = subscribeGroupChat(syncCode, (msgList) => {
       setMessages(msgList);
+      try {
+        localStorage.setItem(`fairshare_chat_cache_${syncCode}`, JSON.stringify(msgList.slice(-100)));
+      } catch (_) {}
       markGroupChatAsRead(syncCode);
+
+      // On first remote load, jump to bottom instantly
+      if (!isInitialScrollDoneRef.current) {
+        requestAnimationFrame(() => {
+          jumpToBottomInstant();
+          isInitialScrollDoneRef.current = true;
+        });
+      } else {
+        // If already loaded and user is near bottom, smooth scroll down for the new message
+        const container = chatContainerRef.current;
+        if (container) {
+          const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+          if (isNearBottom) {
+            scrollToBottomSmooth();
+          }
+        }
+      }
     });
+
     return () => unsubscribe();
   }, [syncCode]);
 
-  // Auto-scroll to bottom on new messages
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  // Track scroll position to show floating 'Scroll to Latest' button (WhatsApp/Instagram style)
+  const handleContainerScroll = () => {
+    const container = chatContainerRef.current;
+    if (!container) return;
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    setShowScrollBottomBtn(distanceFromBottom > 160);
+  };
 
   const handleSendMessage = async (e) => {
     if (e) e.preventDefault();
@@ -67,6 +130,7 @@ export const GroupChat = ({ group, currentUser, friends, onOpenSettleUp, onClose
       });
       setInputText('');
       if (inputRef.current) inputRef.current.focus();
+      setTimeout(scrollToBottomSmooth, 60);
 
       // Trigger Firebase push notification to other group members
       const otherMemberIds = (group?.members || []).filter(id => id !== currentUserId);
@@ -101,6 +165,7 @@ export const GroupChat = ({ group, currentUser, friends, onOpenSettleUp, onClose
         text: `Friendly reminder to check your balances and settle up!`,
         type: 'nudge',
       });
+      setTimeout(scrollToBottomSmooth, 60);
 
       // Trigger Firebase push notification to other members
       const otherMemberIds = (group?.members || []).filter(id => id !== currentUserId);
@@ -148,7 +213,8 @@ export const GroupChat = ({ group, currentUser, friends, onOpenSettleUp, onClose
       height: '100%',
       width: '100%',
       background: 'var(--bg-card)',
-      overflow: 'hidden'
+      overflow: 'hidden',
+      position: 'relative'
     }}>
       {/* Clean Single Header (WhatsApp / Telegram style) */}
       <div style={{
@@ -247,15 +313,19 @@ export const GroupChat = ({ group, currentUser, friends, onOpenSettleUp, onClose
       </div>
 
       {/* Messages Stream */}
-      <div style={{
-        flex: 1,
-        overflowY: 'auto',
-        padding: '16px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '12px',
-        scrollbarWidth: 'thin'
-      }}>
+      <div 
+        ref={chatContainerRef}
+        onScroll={handleContainerScroll}
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '16px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
+          scrollbarWidth: 'thin'
+        }}
+      >
         {messages.length === 0 ? (
           <div style={{
             display: 'flex',
@@ -529,6 +599,35 @@ export const GroupChat = ({ group, currentUser, friends, onOpenSettleUp, onClose
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Floating Scroll to Latest Button (WhatsApp / Instagram style) */}
+      {showScrollBottomBtn && (
+        <button
+          type="button"
+          onClick={scrollToBottomSmooth}
+          style={{
+            position: 'absolute',
+            bottom: '70px',
+            right: '16px',
+            width: '38px',
+            height: '38px',
+            borderRadius: '50%',
+            background: 'var(--bg-card)',
+            border: '1.5px solid var(--border-color)',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+            color: 'var(--accent-mint)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            zIndex: 20,
+            transition: 'all 0.2s ease',
+          }}
+          title="Scroll to latest messages"
+        >
+          <ChevronDown size={22} />
+        </button>
+      )}
 
       {/* Input Bar */}
       <form 
