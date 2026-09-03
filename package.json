@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "release": "node scripts/publish_release.js"
   },
   "dependencies": {
     "@capacitor-firebase/messaging": "^8.4.0",
