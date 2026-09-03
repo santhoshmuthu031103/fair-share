@@ -23,6 +23,17 @@ public class MainActivity extends BridgeActivity {
 
         // Schedule native background worker for periodic update checks (runs even when app is closed)
         UpdateCheckJobService.schedulePeriodicCheck(this);
+
+        // Capture notification intent if app was launched from a notification tap
+        NativeUpdatePlugin.handleNotificationIntent(getIntent(), getBridge());
+    }
+
+    @Override
+    protected void onNewIntent(android.content.Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        // Capture notification intent when app is resumed/opened from a notification tap
+        NativeUpdatePlugin.handleNotificationIntent(intent, getBridge());
     }
 }
 

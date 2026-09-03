@@ -21,6 +21,7 @@ import { Toast } from './components/Layout/Toast';
 import { SplashScreen } from './components/Layout/SplashScreen';
 import { UpdateModal } from './components/Common/UpdateModal';
 import { checkForAppUpdate } from './utils/updateChecker';
+import { getPendingNotification, addNotificationListener } from './utils/nativeUpdater';
 import { 
   subscribeToCloudGroup, 
   publishToCloudGroup, 
@@ -566,10 +567,13 @@ export function App() {
       const grp = state.groups.find(g => g.id === newExpenseData.groupId);
       if (grp) {
         const otherMemberIds = (grp.members || []).filter(id => id !== currentUser.id);
+        const syncCode = grp.syncCode || generateSyncCode(grp.id);
         triggerNotification({
           action: 'expense_added',
           senderName: currentUser.name || 'Someone',
           senderId: currentUser.id,
+          groupId: grp.id,
+          syncCode: syncCode,
           groupName: grp.name,
           description: newExp.title || newExp.description || 'an expense',
           amount: newExp.amount,
@@ -601,33 +605,24 @@ export function App() {
   };
 
   const handleCreateGroup = (newGroupData) => {
+    const rawId = `group_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const syncCode = generateSyncCode(rawId);
+
     const myId = currentUser.id;
-    const membersWithMe = (newGroupData.members || []).includes(myId)
+    const membersWithMe = newGroupData.members && newGroupData.members.includes(myId)
       ? newGroupData.members
       : [myId, ...(newGroupData.members || [])];
 
-    const newGrp = {
-      id: `group_${Date.now()}`,
+    const grpWithCode = {
       ...newGroupData,
+      id: rawId,
+      syncCode,
       members: membersWithMe,
-      createdAt: new Date().toISOString(),
     };
-
-    const syncCode = generateSyncCode(newGrp.id);
-    const grpWithCode = { ...newGrp, syncCode };
-
-    // Link all included friends' phones & emails in Firebase for zero-code auto-join
-    membersWithMe.forEach(mId => {
-      const friend = state.friends.find(f => f.id === mId);
-      if (friend) {
-        if (friend.phone) linkGroupToUserContact(friend.phone, syncCode);
-        if (friend.email) linkGroupToUserContact(friend.email, syncCode);
-      }
-    });
 
     const nextState = {
       ...state,
-      groups: [grpWithCode, ...state.groups],
+      groups: [...state.groups, grpWithCode],
     };
 
     setState(nextState);
@@ -645,6 +640,8 @@ export function App() {
         action: 'group_created',
         senderName: currentUser.name || 'Someone',
         senderId: currentUser.id,
+        groupId: grpWithCode.id,
+        syncCode: grpWithCode.syncCode,
         groupName: grpWithCode.name,
         memberIds: otherMemberIds,
       });
@@ -696,6 +693,8 @@ export function App() {
       action: 'member_added',
       senderName: currentUser.name || 'Someone',
       senderId: currentUser.id,
+      groupId: grp.id,
+      syncCode: syncCode,
       groupName: grp.name,
       targetUserName: '',
       memberIds: memberIds,
@@ -708,6 +707,8 @@ export function App() {
         action: 'member_added',
         senderName: currentUser.name || 'Someone',
         senderId: currentUser.id,
+        groupId: grp.id,
+        syncCode: syncCode,
         groupName: grp.name,
         targetUserName: addedNames,
         memberIds: otherExistingMembers,
@@ -757,6 +758,8 @@ export function App() {
       action: 'member_removed',
       senderName: currentUser.name || 'Someone',
       senderId: currentUser.id,
+      groupId: grp.id,
+      syncCode: syncCode,
       groupName: grp.name,
       targetUserName: '',
       memberIds: [memberIdToRemove],
@@ -769,6 +772,8 @@ export function App() {
         action: 'member_removed',
         senderName: currentUser.name || 'Someone',
         senderId: currentUser.id,
+        groupId: grp.id,
+        syncCode: syncCode,
         groupName: grp.name,
         targetUserName: removedName,
         memberIds: remainingOther,
@@ -827,6 +832,8 @@ export function App() {
           action: 'member_left',
           senderName: currentUser.name || 'Someone',
           senderId: currentUser.id,
+          groupId: grp.id,
+          syncCode: syncCode,
           groupName: grp.name,
           memberIds: remainingMembers,
         });
@@ -888,10 +895,13 @@ export function App() {
       const grp = state.groups.find(g => g.id === newSettlementData.groupId);
       if (grp) {
         const otherMemberIds = (grp.members || []).filter(id => id !== currentUser.id);
+        const syncCode = grp.syncCode || generateSyncCode(grp.id);
         triggerNotification({
           action: 'settlement_added',
           senderName: currentUser.name || 'Someone',
           senderId: currentUser.id,
+          groupId: grp.id,
+          syncCode: syncCode,
           groupName: grp.name,
           payeeName,
           amount: newSet.amount,
@@ -952,11 +962,14 @@ export function App() {
       const grp = state.groups.find(g => g.id === expToDelete.groupId);
       if (grp) {
         const otherMemberIds = (grp.members || []).filter(id => id !== currentUser.id);
+        const syncCode = grp.syncCode || generateSyncCode(grp.id);
         if (otherMemberIds.length > 0) {
           triggerNotification({
             action: 'expense_deleted',
             senderName: currentUser.name || 'Someone',
             senderId: currentUser.id,
+            groupId: grp.id,
+            syncCode: syncCode,
             groupName: grp.name,
             description: expToDelete.title || expToDelete.description || 'an expense',
             memberIds: otherMemberIds,
@@ -1008,11 +1021,14 @@ export function App() {
       const grp = state.groups.find(g => g.id === setToDelete.groupId);
       if (grp) {
         const otherMemberIds = (grp.members || []).filter(id => id !== currentUser.id);
+        const syncCode = grp.syncCode || generateSyncCode(grp.id);
         if (otherMemberIds.length > 0) {
           triggerNotification({
             action: 'settlement_deleted',
             senderName: currentUser.name || 'Someone',
             senderId: currentUser.id,
+            groupId: grp.id,
+            syncCode: syncCode,
             groupName: grp.name,
             memberIds: otherMemberIds,
           });
@@ -1165,6 +1181,101 @@ export function App() {
       showToast(`Joined group "${incomingGroup.name || 'group'}" successfully! 🎊`);
     }, 100);
   };
+
+  // Centralized Notification Deep-Linking & Routing Handler
+  const handleNotificationRouting = (notif) => {
+    if (!notif) return;
+    const action = notif.action;
+    const groupId = notif.groupId;
+    const syncCode = notif.syncCode;
+    console.log('[NotificationRouter] Routing notification:', notif);
+
+    // 1. App Update notification -> Open Profile Modal (where updater is)
+    if (action === 'app_update') {
+      setSelectedGroup(null);
+      setModalType('profile');
+      return;
+    }
+
+    // 2. Group or Chat notification -> Find group and route
+    if (groupId || syncCode) {
+      const targetGroup = state.groups.find(g => 
+        (groupId && g.id === groupId) || 
+        (syncCode && (
+          g.syncCode?.toUpperCase() === syncCode?.toUpperCase() || 
+          g.id?.slice(-6)?.toUpperCase() === syncCode?.toUpperCase()
+        ))
+      );
+
+      if (targetGroup) {
+        setModalType(null);
+        if (action === 'chat_message' || action === 'nudge_settle') {
+          handleSelectGroup(targetGroup, 'chat');
+        } else {
+          handleSelectGroup(targetGroup);
+        }
+      } else if (syncCode) {
+        fetchCloudGroup(syncCode).then(cloudData => {
+          if (cloudData && cloudData.group) {
+            handleJoinGroup(syncCode, cloudData);
+            const joinedGrp = { ...cloudData.group, syncCode };
+            if (action === 'chat_message' || action === 'nudge_settle') {
+              handleSelectGroup(joinedGrp, 'chat');
+            } else {
+              handleSelectGroup(joinedGrp);
+            }
+          }
+        }).catch(console.warn);
+      }
+    }
+  };
+
+  // Notification tap listeners (Cold start + Warm start + Foreground)
+  useEffect(() => {
+    // 1. Cold start: check if app was opened by clicking a notification
+    getPendingNotification().then(notif => {
+      if (notif) {
+        handleNotificationRouting(notif);
+      }
+    }).catch(() => {});
+
+    // 2. Warm start: notification clicked while app was in background
+    let sub = null;
+    try {
+      sub = addNotificationListener((notif) => {
+        if (notif) {
+          handleNotificationRouting(notif);
+        }
+      });
+    } catch (_) {}
+
+    // 3. Window event dispatched by native bridge
+    const handleWindowEvent = (e) => {
+      let data = e.detail;
+      if (typeof data === 'string') {
+        try { data = JSON.parse(data); } catch (_) {}
+      }
+      if (data) {
+        handleNotificationRouting(data);
+      }
+    };
+    window.addEventListener('fairshare_notification_opened', handleWindowEvent);
+
+    // 4. Capacitor FirebaseMessaging notificationActionPerformed listener
+    import('@capacitor-firebase/messaging').then(({ FirebaseMessaging }) => {
+      FirebaseMessaging.addListener('notificationActionPerformed', (event) => {
+        const data = event?.notification?.data;
+        if (data) {
+          handleNotificationRouting(data);
+        }
+      }).catch(() => {});
+    }).catch(() => {});
+
+    return () => {
+      if (sub && sub.remove) sub.remove();
+      window.removeEventListener('fairshare_notification_opened', handleWindowEvent);
+    };
+  }, [state.groups]);
 
   return (
     <div className={`app-container ${isDarkMode ? 'dark-theme' : 'light-theme'}`}>

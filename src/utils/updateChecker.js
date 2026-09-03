@@ -5,7 +5,7 @@
 
 import { App } from '@capacitor/app';
 
-export const CURRENT_APP_VERSION = '1.5.3';
+export const CURRENT_APP_VERSION = '1.5.4';
 export const APP_DOWNLOAD_URL = 'https://github.com/santhoshmuthu031103/fair-share/releases/latest/download/FairShare-latest.apk';
 export const APP_RELEASES_URL = 'https://github.com/santhoshmuthu031103/fair-share/releases/latest';
 const GITHUB_REPO = 'santhoshmuthu031103/fair-share';

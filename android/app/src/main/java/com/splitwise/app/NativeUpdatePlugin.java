@@ -28,6 +28,50 @@ public class NativeUpdatePlugin extends Plugin {
     private static final String TAG = "NativeUpdatePlugin";
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
+    public static JSObject pendingNotification = null;
+    private static NativeUpdatePlugin instance = null;
+
+    @Override
+    public void load() {
+        super.load();
+        instance = this;
+    }
+
+    public static void handleNotificationIntent(Intent intent, com.getcapacitor.Bridge bridge) {
+        if (intent == null || intent.getExtras() == null) return;
+        android.os.Bundle extras = intent.getExtras();
+        if (extras.containsKey("action") || extras.containsKey("groupId") || extras.containsKey("syncCode") || extras.containsKey("latestVersion")) {
+            JSObject data = new JSObject();
+            for (String key : extras.keySet()) {
+                Object val = extras.get(key);
+                if (val != null) {
+                    data.put(key, val.toString());
+                }
+            }
+            pendingNotification = data;
+            Log.d(TAG, "Notification intent captured: " + data.toString());
+
+            if (instance != null) {
+                instance.notifyListeners("notificationOpened", data, true);
+            }
+            if (bridge != null) {
+                bridge.triggerWindowJSEvent("fairshare_notification_opened", data.toString());
+            }
+        }
+    }
+
+    @PluginMethod
+    public void getPendingNotification(PluginCall call) {
+        JSObject ret = new JSObject();
+        if (pendingNotification != null) {
+            ret.put("notification", pendingNotification);
+            pendingNotification = null;
+        } else {
+            ret.put("notification", null);
+        }
+        call.resolve(ret);
+    }
+
     @PluginMethod
     public void canRequestInstalls(PluginCall call) {
         JSObject ret = new JSObject();

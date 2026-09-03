@@ -34,7 +34,9 @@ export default {
       memberIds, 
       currency = '₹',
       customTitle,
-      customBody
+      customBody,
+      groupId,
+      syncCode
     } = body;
 
     if (!Array.isArray(memberIds) || memberIds.length === 0) {
@@ -149,6 +151,8 @@ export default {
             },
             data: {
               action: action || '',
+              groupId: groupId || '',
+              syncCode: syncCode || '',
               groupName: groupName || '',
               title: title || '',
               body: notifBody || '',

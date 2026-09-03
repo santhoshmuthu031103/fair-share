@@ -49,3 +49,26 @@ export const openInstallPermissionSettings = async () => {
     await NativeUpdate.openInstallSettings();
   } catch (_) {}
 };
+
+/**
+ * Retrieves any notification payload that launched or woke the app
+ */
+export const getPendingNotification = async () => {
+  try {
+    const res = await NativeUpdate.getPendingNotification();
+    return res?.notification || null;
+  } catch (_) {
+    return null;
+  }
+};
+
+/**
+ * Listens for real-time notification open events
+ */
+export const addNotificationListener = (callback) => {
+  try {
+    return NativeUpdate.addListener('notificationOpened', callback);
+  } catch (_) {
+    return { remove: () => {} };
+  }
+};

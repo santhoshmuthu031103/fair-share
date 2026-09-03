@@ -194,10 +194,15 @@ public class UpdateCheckJobService extends JobService {
             nm.createNotificationChannel(channel);
         }
 
-        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl));
+        Intent intent = new Intent(context, MainActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        intent.putExtra("action", "app_update");
+        intent.putExtra("latestVersion", latestVersion);
+        intent.putExtra("downloadUrl", downloadUrl);
+
         PendingIntent pendingIntent = PendingIntent.getActivity(
                 context,
-                0,
+                1002,
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0)
         );
