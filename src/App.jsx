@@ -220,6 +220,10 @@ export function App() {
 
           // If current user is no longer a member of this group (removed or left):
           if (currentUser?.id && incomingMemberIds.length > 0 && !incomingMemberIds.includes(currentUser.id)) {
+            if (currentUser.phone) unlinkGroupFromUserContact(currentUser.phone, syncCode);
+            if (currentUser.email) unlinkGroupFromUserContact(currentUser.email, syncCode);
+            if (currentUser.id)    unlinkGroupFromUserContact(currentUser.id, syncCode);
+
             setState(prev => ({
               ...prev,
               groups: prev.groups.filter(g => (g.syncCode || generateSyncCode(g.id)) !== syncCode && g.id !== incomingGroup.id),
@@ -366,6 +370,15 @@ export function App() {
         return;
       }
       if (cloudData && cloudData.group) {
+        const memberIds = cloudData.group.members || [];
+        // If current user is NOT in the cloud group's members list (meaning they left or were removed),
+        // DO NOT automatically re-join them! Clean up the user_groups link in Firebase.
+        if (currentUser.id && memberIds.length > 0 && !memberIds.includes(currentUser.id)) {
+          if (currentUser.phone) unlinkGroupFromUserContact(currentUser.phone, syncCode);
+          if (currentUser.email) unlinkGroupFromUserContact(currentUser.email, syncCode);
+          if (currentUser.id)    unlinkGroupFromUserContact(currentUser.id, syncCode);
+          return;
+        }
         handleJoinGroup(syncCode, cloudData);
       }
     }, currentUser.id);
@@ -651,20 +664,16 @@ export function App() {
     // Instant publish to Firebase
     publishGroupInstantly(grpWithCode.id, nextState);
 
-    // ── CRITICAL: Link every member's phone/email so they auto-discover this group ──
-    // This writes user_groups/{phone}/{syncCode}=true and user_groups/{email}/{syncCode}=true
-    // so that the recipient's listenForUserGroups fires and pulls the group in real-time.
-    membersWithMe.forEach(mId => {
-      const member = mId === myId ? currentUser : state.friends.find(f => f.id === mId);
+    // ── Link other members' contacts so their devices auto-discover this group ──
+    const otherMemberIds = (membersWithMe || []).filter(id => id !== myId);
+    otherMemberIds.forEach(mId => {
+      const member = state.friends.find(f => f.id === mId);
       if (member) {
         if (member.phone) linkGroupToUserContact(member.phone, syncCode);
         if (member.email) linkGroupToUserContact(member.email, syncCode);
         if (member.id)    linkGroupToUserContact(member.id, syncCode);
       }
     });
-
-    // Notify other group members about group creation
-    const otherMemberIds = (membersWithMe || []).filter(id => id !== myId);
     if (otherMemberIds.length > 0) {
       triggerNotification({
         action: 'group_created',
@@ -764,6 +773,7 @@ export function App() {
     // not immediately re-joined by their own listenForUserGroups listener.
     if (memberToRemove?.phone) unlinkGroupFromUserContact(memberToRemove.phone, syncCode);
     if (memberToRemove?.email) unlinkGroupFromUserContact(memberToRemove.email, syncCode);
+    if (memberToRemove?.id)    unlinkGroupFromUserContact(memberToRemove.id, syncCode);
 
     const groupExps = state.expenses.filter(e => e.groupId === grp.id);
     const groupSets = state.settlements.filter(s => s.groupId === grp.id);
@@ -823,11 +833,12 @@ export function App() {
       const remainingMembers = (grp.members || []).filter(mId => mId !== currentUser.id);
 
       // ── CRITICAL FIX ──────────────────────────────────────────────────────────
-      // Remove the Firebase auto-discover entry (user_groups/{phone}/{code}).
+      // Remove the Firebase auto-discover entry (user_groups/{phone}/{code} and user_groups/{id}/{code}).
       // Without this, listenForUserGroups fires again after we delete the local
       // group and immediately re-joins the user via handleJoinGroup!
       if (currentUser.phone) unlinkGroupFromUserContact(currentUser.phone, syncCode);
       if (currentUser.email) unlinkGroupFromUserContact(currentUser.email, syncCode);
+      if (currentUser.id)    unlinkGroupFromUserContact(currentUser.id, syncCode);
       // ─────────────────────────────────────────────────────────────────────────
 
       // Unsubscribe WebSocket listener for this group on leaving device
@@ -1091,6 +1102,27 @@ export function App() {
       deleteCloudGroup(syncCode);
     } catch (e) {
       console.error('Failed to delete cloud group', e);
+    }
+
+    // Unsubscribe WebSocket listener on this device
+    if (activeUnsubsRef.current[syncCode]) {
+      activeUnsubsRef.current[syncCode]();
+      delete activeUnsubsRef.current[syncCode];
+    }
+
+    // Unlink contacts in Firebase so auto-discover stops tracking it
+    if (currentUser.phone) unlinkGroupFromUserContact(currentUser.phone, syncCode);
+    if (currentUser.email) unlinkGroupFromUserContact(currentUser.email, syncCode);
+    if (currentUser.id)    unlinkGroupFromUserContact(currentUser.id, syncCode);
+    if (grp?.members) {
+      grp.members.forEach(mId => {
+        const member = state.friends.find(f => f.id === mId);
+        if (member) {
+          if (member.phone) unlinkGroupFromUserContact(member.phone, syncCode);
+          if (member.email) unlinkGroupFromUserContact(member.email, syncCode);
+          if (member.id)    unlinkGroupFromUserContact(member.id, syncCode);
+        }
+      });
     }
 
     // Notify other members
