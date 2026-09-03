@@ -195,9 +195,9 @@ export const unlinkGroupFromUserContact = (contactKey, syncCode) => {
 };
 
 /**
- * Auto-discover groups for the logged-in user by their phone and email
+ * Auto-discover groups for the logged-in user by their phone, email, or user ID
  */
-export const listenForUserGroups = (phone, email, onGroupCodeDiscovered) => {
+export const listenForUserGroups = (phone, email, onGroupCodeDiscovered, userId) => {
   if (!db) return () => {};
   const unsubs = [];
 
@@ -218,6 +218,7 @@ export const listenForUserGroups = (phone, email, onGroupCodeDiscovered) => {
 
   if (phone) checkKey(phone);
   if (email) checkKey(email);
+  if (userId) checkKey(userId); // Also discover via user ID
 
   return () => {
     unsubs.forEach(unsub => unsub && unsub());

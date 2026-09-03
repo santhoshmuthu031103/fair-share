@@ -337,9 +337,9 @@ export function App() {
     };
   }, [friends.map(f => f.id).join(','), currentUser.id]);
 
-  // Auto-discover groups linked to user's phone or email
+  // Auto-discover groups linked to user's phone, email, or user ID
   useEffect(() => {
-    if (!currentUser?.phone && !currentUser?.email) return;
+    if (!currentUser?.phone && !currentUser?.email && !currentUser?.id) return;
 
     const unsub = listenForUserGroups(currentUser.phone, currentUser.email, async (syncCode) => {
       if (!syncCode) return;
@@ -350,10 +350,10 @@ export function App() {
       if (cloudData && cloudData.group) {
         handleJoinGroup(syncCode, cloudData);
       }
-    });
+    }, currentUser.id);
 
     return () => unsub && unsub();
-  }, [currentUser?.phone, currentUser?.email, state.groups]);
+  }, [currentUser?.phone, currentUser?.email, currentUser?.id, state.groups]);
 
   // Realtime listener for direct non-group expenses (friend-to-friend)
   useEffect(() => {
@@ -632,6 +632,18 @@ export function App() {
 
     // Instant publish to Firebase
     publishGroupInstantly(grpWithCode.id, nextState);
+
+    // ── CRITICAL: Link every member's phone/email so they auto-discover this group ──
+    // This writes user_groups/{phone}/{syncCode}=true and user_groups/{email}/{syncCode}=true
+    // so that the recipient's listenForUserGroups fires and pulls the group in real-time.
+    membersWithMe.forEach(mId => {
+      const member = mId === myId ? currentUser : state.friends.find(f => f.id === mId);
+      if (member) {
+        if (member.phone) linkGroupToUserContact(member.phone, syncCode);
+        if (member.email) linkGroupToUserContact(member.email, syncCode);
+        if (member.id)    linkGroupToUserContact(member.id, syncCode);
+      }
+    });
 
     // Notify other group members about group creation
     const otherMemberIds = (membersWithMe || []).filter(id => id !== myId);
