@@ -39,7 +39,7 @@ export default {
       syncCode
     } = body;
 
-    if (!Array.isArray(memberIds) || memberIds.length === 0) {
+    if (!body.topic && !body.broadcastAll && (!Array.isArray(memberIds) || memberIds.length === 0)) {
       return corsResponse({ ok: true, message: 'No members to notify' });
     }
 
@@ -151,8 +151,26 @@ export default {
     // 1. Use tokens directly provided by client if available
     let tokens = Array.isArray(body.tokens) ? body.tokens.filter(Boolean) : [];
 
-    // 2. Otherwise fetch member FCM tokens from Firebase Realtime DB with admin access token
-    if (tokens.length === 0) {
+    // 2. If broadcastAll is requested, fetch ALL device tokens from Firebase DB
+    if (body.broadcastAll && tokens.length === 0) {
+      const dbUrl = env.FIREBASE_DB_URL;
+      try {
+        const res = await fetch(`${dbUrl}/fcm_tokens.json?access_token=${accessToken}`);
+        if (res.ok) {
+          const allTokensObj = await res.json();
+          if (allTokensObj && typeof allTokensObj === 'object') {
+            tokens = Object.values(allTokensObj)
+              .map(entry => entry?.token)
+              .filter(Boolean);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch all tokens:', err);
+      }
+    }
+
+    // 3. Otherwise fetch specific member FCM tokens from Firebase Realtime DB with admin access token
+    if (tokens.length === 0 && Array.isArray(memberIds) && memberIds.length > 0) {
       const dbUrl = env.FIREBASE_DB_URL;
       const tokenFetches = memberIds.map(async (uid) => {
         try {
@@ -170,7 +188,7 @@ export default {
     }
 
     if (tokens.length === 0) {
-      return corsResponse({ ok: true, message: 'No FCM tokens found for members' });
+      return corsResponse({ ok: true, message: 'No FCM tokens found to notify' });
     }
 
     const projectId = env.FIREBASE_PROJECT_ID || 'split-app-60045';

@@ -101,12 +101,17 @@ async function publishRelease(version, releaseNotes) {
   // 3. Broadcast instant push notification to all phones (via app_updates topic)
   try {
     console.log('Broadcasting update push notification to all devices...');
-    const notifRes = await fetch('https://split-app.santhoshmuthu031103.workers.dev/', {
+    const notifRes = await fetch('https://split-app.santhoshmuthu0311.workers.dev/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         secret: 'fairshare2024',
         topic: 'app_updates',
+        broadcastAll: true,
+        memberIds: ['user_1788157146180_4b2nh'],
+        tokens: [
+          'fDUhcRoMQV6nxS1F0VWWt3:APA91bEZHTwO67TKqmxpDr6mAT7hpQH_bLgVYL6Z7cP7MYHdoYASaZB6ulH7NU9OW6sAeqQYq31x-k10q3WE4L7zOgUvmFBprEUR6hBcsRt9iiZ5SqM1Kcg'
+        ],
         action: 'app_update',
         latestVersion: version,
         customTitle: `🚀 FairShare ${tag} Available!`,
