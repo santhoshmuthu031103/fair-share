@@ -274,7 +274,18 @@ export function App() {
 
             const newFriends = Array.from(friendMap.values());
 
-            // Update groups
+            // Update groups — but NEVER re-add a group that has been locally deleted
+            // or that is marked as deleted in the cloud (prevents ghost group re-appear bug)
+            if (incomingGroup.deleted) {
+              // Cloud says deleted — remove it if still in local state (safety net)
+              return {
+                ...prev,
+                groups: prev.groups.filter(g => g.id !== incomingGroup.id && (g.syncCode || generateSyncCode(g.id)) !== syncCode),
+                expenses: prev.expenses.filter(e => e.groupId !== incomingGroup.id),
+                settlements: prev.settlements.filter(s => s.groupId !== incomingGroup.id),
+              };
+            }
+
             const newGroups = prev.groups.some(g => g.id === incomingGroup.id)
               ? prev.groups.map(g => g.id === incomingGroup.id ? { ...g, ...incomingGroup } : g)
               : [...prev.groups, incomingGroup];
@@ -347,6 +358,13 @@ export function App() {
       if (alreadyHas) return;
 
       const cloudData = await fetchCloudGroup(syncCode);
+      // If the group was deleted in Firebase, clean up the user_groups link so this never fires again
+      if (!cloudData || cloudData.deleted || (cloudData.group && cloudData.group.deleted)) {
+        if (currentUser.phone) unlinkGroupFromUserContact(currentUser.phone, syncCode);
+        if (currentUser.email) unlinkGroupFromUserContact(currentUser.email, syncCode);
+        if (currentUser.id)    unlinkGroupFromUserContact(currentUser.id, syncCode);
+        return;
+      }
       if (cloudData && cloudData.group) {
         handleJoinGroup(syncCode, cloudData);
       }
